@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import SidebarKaryawan from '@/components/sidebar-karyawan';
-import HeaderKaryawan from '@/components/header-karyawan';
+import Sidebar from '@/components/sidebar-karyawan';
+import Header from '@/components/header-karyawan';
 import { 
   PlusCircle,  
   Camera, 
@@ -43,7 +43,7 @@ export default function AjukanReimbursement() {
     <div className="min-h-screen bg-background flex text-slate-800 font-sans selection:bg-emerald-100">
       
       {/* 1. SIDEBAR KARYAWAN */}
-      <SidebarKaryawan isSidebarOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <Sidebar />
 
       {/* OVERLAY FOR MOBILE */}
       {isSidebarOpen && (
@@ -54,7 +54,7 @@ export default function AjukanReimbursement() {
       <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
         
         {/* GLOBAL HEADER BAR */}
-        <HeaderKaryawan onOpenSidebar={() => setIsSidebarOpen(true)} />
+        <Header />
 
         {/* CONTAINER CONTENT UTAMA */}
         <main className="p-4 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
