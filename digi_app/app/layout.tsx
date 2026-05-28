@@ -11,17 +11,17 @@ export default function DashboardLayout({
   return (
     <html lang="en">
       <body>
-        <div className="flex h-screen w-full bg-zinc-100 text-zinc-800 antialiased overflow-hidden">
+        <div className="flex min-h-screen w-full bg-background text-zinc-800 antialiased overflow-hidden">
           
-          {/* Sidebar Kiri Tetap */}
-          <Sidebar />
+          {/* Sidebar Keuangan */}
+          {/* <Sidebar /> */}
 
           {/* Sisi Kanan: Header + Konten Halaman Aktif */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            <Header />
+            {/* <Header /> */}
             
             {/* Tempat Masuknya isi dari page.tsx */}
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-col flex overflow-hidden w-full mx-auto">
               {children}
             </div>
           </div>

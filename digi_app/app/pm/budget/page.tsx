@@ -1,18 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import SidebarPM from '../../../components/sidebar-pm';
+import HeaderPM from '../../../components/header-pm';
 import { 
-  LayoutDashboard, 
-  FileCheck, 
-  Wallet, 
-  BarChart3, 
-  Menu, 
-  X, 
   Plus, 
   AlertCircle,
   ChevronDown,
   Download,
-  Bell,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
@@ -122,70 +117,16 @@ export default function BudgetProyek() {
 
   return (
     <div className="min-h-screen bg-background flex text-slate-800 font-sans">
-      
-      {/* SIDEBAR */}
-      <aside className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-black transform transition-transform duration-200 ease-in-out
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0 lg:static lg:flex lg:flex-col border-r border-slate-200
-      `}>
-        <div className="p-5 flex items-center justify-between border-b border-slate-200">
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-600 p-2 rounded-lg text-white font-bold text-xl">D</div>
-            <div>
-              <h1 className="font-bold text-sm leading-tight">Digi Money Manager</h1>
-            </div>
-          </div>
-          <button className="lg:hidden text-slate-900 hover:text-black" onClick={() => setIsSidebarOpen(false)}>
-            <X size={20} />
-          </button>
-        </div>
 
-        <nav className="p-4 space-y-1 flex-1">
-          <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-black hover:bg-[#E9E5DD] transition">
-            <LayoutDashboard size={18} /> Beranda PM
-          </a>
-          <a href="#" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-black hover:bg-[#E9E5DD] transition">
-            <div className="flex items-center gap-3">
-              <FileCheck size={18} /> Antrian Approval
-            </div>
-            <span className="bg-green-900 text-white font-bold text-xs px-2 py-0.5 rounded-full">2</span>
-          </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm bg-white text-black hover:bg-[#E9E5DD] font-medium">
-            <Wallet size={18} /> Budget Proyek
-          </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-black hover:bg-[#E9E5DD] transition">
-            <BarChart3 size={18} /> Service Score
-          </a>
-        </nav>
-      </aside>
+      <SidebarPM 
+        isSidebarOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+      />
 
-      {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
-        
-        <header className="bg-background backdrop-blur-md border-b border-slate-200 h-16 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30">
-          <div className="flex items-center gap-3">
-            <button className="lg:hidden text-slate-600 p-1.5 hover:bg-slate-100 rounded-lg transition" onClick={() => setIsSidebarOpen(true)}>
-              <Menu size={22} />
-            </button>
-            <div className="w-7 h-7 border border-slate-300 rounded flex items-center justify-center text-slate-400 text-xs font-mono select-none">✕</div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button className="relative p-3 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition text-slate-700">
-              <Bell size={18} />
-              <span className="absolute -top-1.5 -right-1.5 bg-rose-700 text-white font-extrabold text-[10px] w-5 h-5 flex items-center justify-center rounded-full border border-white">3</span>
-            </button>
-
-            <div className="flex items-center gap-3 bg-white border border-slate-300 rounded-lg px-3.5 py-1.5">
-              <div className="w-8 h-8 bg-red-50 border border-red-100 text-red-700 rounded-full flex items-center justify-center font-bold text-[11px] tracking-wider">MAA</div>
-              <div className="text-left hidden sm:block">
-                <h4 className="text-xs font-bold text-slate-800 leading-tight">Muhammad Alvin Ababil</h4>
-                <p className="text-[10px] font-medium text-slate-400 mt-0.5">Project Manager</p>
-              </div>
-            </div>
-          </div>
-        </header>
+        <HeaderPM 
+          onOpenSidebar={() => setIsSidebarOpen(true)} 
+        />
 
         <main className="p-4 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
           
@@ -309,53 +250,78 @@ export default function BudgetProyek() {
 
           <div className="space-y-6">
             
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 max-w-3xl">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="font-bold text-xl flex items-center gap-2 text-slate-900">
-                   Realisasi per Pos Anggaran
-                </h3>
-                <button className="inline-flex items-center gap-1 text-xs font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg transition">
-                  <Plus size={14} /> Tambah Pos
-                </button>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full">
+              
+              {/* REALISASI PER POS ANGGARAN */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 lg:col-span-7 h-full">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h3 className="font-bold text-xl flex items-center gap-2 text-slate-900">
+                     Realisasi per Pos Anggaran
+                  </h3>
+                  <button className="inline-flex items-center gap-1 text-xs font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg transition">
+                    <Plus size={14} /> Tambah Pos
+                  </button>
+                </div>
+
+                <div className="space-y-4 pt-1">
+                  {posAnggaran.map((pos, idx) => {
+                    const percentage = Math.min(Math.round((pos.used / pos.total) * 100), 100);
+                    const isWarning = percentage >= 80;
+
+                    return (
+                      <div key={idx} className="space-y-1.5">
+                        <div className="flex justify-between text-xs font-medium">
+                          <div>
+                            <span className="font-bold text-slate-800">{pos.name}</span>
+                            <span className="ml-1.5 text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded">
+                              {pos.id}
+                            </span>
+                          </div>
+                          <div className="text-slate-500 font-mono">
+                            <span className="font-bold text-slate-800">Rp {pos.used}</span> / Rp {pos.total} {pos.unit}
+                          </div>
+                        </div>
+                        
+                        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden relative">
+                          <div 
+                            className={`h-full rounded-full transition-all duration-500 ${isWarning ? 'bg-amber-500' : 'bg-blue-600'}`} 
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] text-slate-400">
+                          <span>Terpakai: {percentage}%</span>
+                          {isWarning && (
+                            <span className="text-amber-600 font-medium flex items-center gap-0.5">
+                              <AlertCircle size={10} /> Mendekati batas limit anggaran
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div className="space-y-4 pt-1">
-                {posAnggaran.map((pos, idx) => {
-                  const percentage = Math.min(Math.round((pos.used / pos.total) * 100), 100);
-                  const isWarning = percentage >= 80;
-
-                  return (
-                    <div key={idx} className="space-y-1.5">
-                      <div className="flex justify-between text-xs font-medium">
-                        <div>
-                          <span className="font-bold text-slate-800">{pos.name}</span>
-                          <span className="ml-1.5 text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded">
-                            {pos.id}
-                          </span>
-                        </div>
-                        <div className="text-slate-500 font-mono">
-                          <span className="font-bold text-slate-800">Rp {pos.used}</span> / Rp {pos.total} {pos.unit}
-                        </div>
-                      </div>
-                      
-                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden relative">
-                        <div 
-                          className={`h-full rounded-full transition-all duration-500 ${isWarning ? 'bg-amber-500' : 'bg-blue-600'}`} 
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between items-center text-[10px] text-slate-400">
-                        <span>Terpakai: {percentage}%</span>
-                        {isWarning && (
-                          <span className="text-amber-600 font-medium flex items-center gap-0.5">
-                            <AlertCircle size={10} /> Mendekati batas limit anggaran
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+              {/* ANALYTICS IMAGE CARD */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 lg:col-span-5 h-full flex flex-col justify-between min-h-[420px]">
+                <div className="border-b border-slate-100 pb-3">
+                  <h3 className="font-bold text-xl text-slate-900">
+                     Image gk tau ini buat apa
+                  </h3>
+                </div>
+                <div className="flex-1 flex flex-col items-center justify-center p-4 border border-dashed border-slate-200 rounded-xl bg-slate-50/50 hover:bg-slate-50 transition duration-300 relative overflow-hidden group min-h-[250px]">
+                  <img 
+                    src="/budget_chart.png" 
+                    alt="Analisis Visual Anggaran" 
+                    className="max-h-[230px] w-full object-contain rounded-lg shadow-sm transition-transform duration-500 group-hover:scale-102"
+                  />
+                </div>
+                <div className="text-center pt-2">
+                  <p className="text-xs font-semibold text-slate-700">Grafik Ringkasan Pemakaian Pos Anggaran</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Diperbarui secara berkala berdasarkan transaksi riil</p>
+                </div>
               </div>
+
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

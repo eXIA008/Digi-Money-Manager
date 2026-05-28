@@ -161,7 +161,7 @@ export default function PencairanPage() {
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-stone-400">Keterangan dari pengaju</label>
             <div className="bg-[#fcfbf9] border border-stone-200 rounded-xl p-3 text-xs text-stone-700 italic leading-relaxed">
-              "Pembelian kertas A4, log book, dan papan klip untuk kebutuhan administrasi site".
+                Pembelian kertas A4, log book, dan papan klip untuk kebutuhan administrasi site.
             </div>
           </div>
 

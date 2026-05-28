@@ -11,8 +11,8 @@ export default function Sidebar() {
         <div className="flex items-center gap-3 px-2 mb-6">
           {/* Kotak Logo Silang Bawaan Mockup */}
           <div className="w-10 h-10 border border-stone-400 relative flex items-center justify-center shrink-0 bg-white/20">
-            <div className="absolute w-full h-[1px] bg-stone-400 rotate-45"></div>
-            <div className="absolute w-full h-[1px] bg-stone-400 -rotate-45"></div>
+            <div className="absolute w-full h-px bg-stone-400 rotate-45"></div>
+            <div className="absolute w-full h-px bg-stone-400 -rotate-45"></div>
           </div>
           <span className="font-semibold text-stone-900 text-base tracking-tight">
             Digi Money Manager
