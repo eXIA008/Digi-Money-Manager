@@ -5,6 +5,9 @@ import {
   List, FileBarChart, Bell, Zap, X
 } from "lucide-react";
 
+import Sidebar from "@/components/sidebar-keuangan";
+import Header from "@/components/header-keuangan";
+
 export default function PencairanPage() {
   const queueList = [
     {
@@ -26,9 +29,14 @@ export default function PencairanPage() {
   return (
     <div className="flex h-screen w-full bg-[#f4f2ec] font-sans text-stone-800 overflow-hidden">
     
+        {/* Sidebar */}
+        <Sidebar />
 
       {/* ================= AREA KONTEN (KANAN) ================= */}
       <div className="flex-1 flex flex-col min-w-0 bg-[#f6f4f0]">
+
+        {/* Header dipindah ke sini, di dalam kolom kanan */}
+        <Header />
 
         {/* Halaman Utama */}
         <main className="flex-1 overflow-hidden flex flex-col px-8 pb-8 pt-2">
@@ -258,7 +266,6 @@ export default function PencairanPage() {
                 </div>
               </div>
             </div>
-
           </div>
         </main>
       </div>
