@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Wallet, BookOpen, BarChart3, Settings } from "lucide-react";
-
+        
 const navItems = [
   { href: "/keuangan", icon: LayoutDashboard, label: "Beranda Keuangan", badge: null },
   { href: "/keuangan/pencairan", icon: Wallet, label: "Pencairan", badge: 2 },
@@ -13,13 +13,48 @@ const navItems = [
   { href: "/keuangan/laporan", icon: BarChart3, label: "Laporan Keuangan", badge: null },
 ];
 
-export default function Sidebar() {
+export default function SidebarKeuangan() {
   const pathname = usePathname();
+
+  // Manajemen konfigurasi navigasi terpusat
+  const menuItems = [
+    {
+      name: "Beranda Keuangan",
+      href: "/keuangan",
+      icon: LayoutDashboard,
+      hasBadge: false,
+    },
+    {
+      name: "Pencairan",
+      href: "/keuangan/pencairan",
+      icon: Wallet,
+      hasBadge: true,
+      badgeValue: 2,
+    },
+    {
+      name: "Jurnal Akuntansi",
+      href: "/keuangan/jurnal",
+      icon: BookOpen,
+      hasBadge: false,
+    },
+    {
+      name: "Chart of Accounts",
+      href: "/keuangan/chart-of-account", // Mengarah ke rute fungsional halaman Anda
+      icon: Settings,
+      hasBadge: false,
+    },
+    {
+      name: "Laporan Keuangan",
+      href: "/keuangan/laporan",
+      icon: BarChart3,
+      hasBadge: false,
+    },
+  ];
 
   return (
     <aside className="w-64 bg-[#f4f1eb] border-r border-stone-200 flex flex-col justify-between py-6 px-4 shrink-0 h-full">
       <div>
-        {/* Logo Brand */}
+        {/* Logo Brand / Identitas Aplikasi */}
         <div className="flex items-center gap-3 px-2 mb-6">
           <div className="w-10 h-10 border border-stone-400 relative flex items-center justify-center shrink-0 bg-white/20">
             <div className="absolute w-full h-px bg-stone-400 rotate-45"></div>
@@ -46,15 +81,17 @@ export default function Sidebar() {
                 }`}
               >
                 <div className="flex items-center gap-3.5">
-                  <Icon
-                    size={20}
-                    className={isActive ? "text-[#005c3e] stroke-[2.25]" : "text-stone-700 stroke-[1.75]"}
+                  <Icon 
+                    size={20} 
+                    className={isActive ? "text-[#005c3e] stroke-[2.25]" : "text-stone-700 stroke-[1.75]"} 
                   />
-                  <span>{label}</span>
+                  <span>{item.name}</span>
                 </div>
-                {badge !== null && (
+                
+                {/* Badge angka notifikasi khusus jika properti bernilai true */}
+                {item.hasBadge && (
                   <span className="bg-[#005c3e] text-white text-xs w-5 h-5 flex items-center justify-center rounded-full font-bold">
-                    {badge}
+                    {item.badgeValue}
                   </span>
                 )}
               </Link>
