@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Calendar, Filter, Download, ArrowUp, ArrowDown, Check, BookOpen, ChevronDown,
 } from "lucide-react";
@@ -57,8 +58,19 @@ function periodeLabel(start: string, end: string) {
 }
 
 export default function JurnalAkuntansiPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const tabParam = searchParams.get("tab");
+  const initialTab = tabs.includes(tabParam ?? "") ? tabParam! : "Jurnal Umum";
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("Jurnal Umum");
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    router.replace(`${pathname}?tab=${encodeURIComponent(tab)}`, { scroll: false });
+  };
   const [showPeriode, setShowPeriode] = useState(false);
   const [draftStart, setDraftStart] = useState("2026-05-01");
   const [draftEnd, setDraftEnd] = useState("2026-06-30");
@@ -155,10 +167,10 @@ export default function JurnalAkuntansiPage() {
       const formattedNominal = Number(item.Nominal).toLocaleString('id-ID');
 
       const entry: JournalEntry = {
-        id: `JE-${item.ID.substring(0, 8).toUpperCase()}`,
+        id: `JE-${String(item.ID).padStart(4, '0')}`,
         tanggal: formatTanggal(item.Tanggal),
         keterangan: item.Keterangan,
-        ref: `RB-${item.ID.substring(0, 8).toUpperCase()}`,
+        ref: `RB-${String(item.ID).padStart(4, '0')}`,
         lines: [
           { type: "Dr", kode: dbCode, akun: dbName, debit: formattedNominal, kredit: null },
           { type: "Cr", kode: crCode, akun: crName, debit: null, kredit: formattedNominal }
@@ -329,11 +341,11 @@ export default function JurnalAkuntansiPage() {
 
             {/* Baris Tab + Kontrol */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between px-6 border-b border-stone-200 bg-white rounded-t-xl gap-4 sm:gap-0">
-              <div className="flex overflow-x-auto">
+              <div className="flex overflow-x-auto overflow-y-hidden">
                 {tabs.map((tab) => (
                   <button
                     key={tab}
-                    onClick={() => setActiveTab(tab)}
+                    onClick={() => handleTabChange(tab)}
                     className={`px-4 py-4 text-[13px] font-medium transition border-b-2 -mb-px shrink-0 cursor-pointer ${
                       activeTab === tab
                         ? "border-stone-900 text-stone-900 font-semibold"
@@ -428,7 +440,7 @@ export default function JurnalAkuntansiPage() {
             {/* Tabel Jurnal Umum */}
             {activeTab === "Jurnal Umum" && (
               <div className="overflow-x-auto rounded-b-xl">
-                <table className="w-full min-w-[800px]">
+                <table className="w-full min-w-200">
                   <thead>
                     <tr className="border-b border-stone-200 bg-[#fafaf9]">
                       <th className="text-left text-[11px] font-semibold text-stone-400 tracking-wider px-6 py-3.5 uppercase">
@@ -499,7 +511,7 @@ export default function JurnalAkuntansiPage() {
                             {lineIdx === 0 && (
                               <td
                                 rowSpan={entry.lines.length}
-                                className="px-4 py-3 align-top text-[12px] text-stone-600 max-w-[240px]"
+                                className="px-4 py-3 align-top text-[12px] text-stone-600 max-w-60"
                               >
                                 {entry.keterangan}
                               </td>
@@ -507,7 +519,7 @@ export default function JurnalAkuntansiPage() {
                             <td className="px-4 py-2.5">
                               <div className="flex items-center gap-2 text-[12px] font-mono text-stone-700">
                                 <span
-                                  className={`w-[22px] h-[22px] rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                                  className={`w-5.5 h-5.5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
                                     line.type === "Dr"
                                       ? "bg-[#d1fae5] text-[#065f46]"
                                       : "bg-[#fee2e2] text-[#991b1b]"
