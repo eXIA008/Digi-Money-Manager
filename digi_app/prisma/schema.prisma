@@ -12,15 +12,15 @@ generator client {
 }
 
 model User {
-  id              String          @id @default(uuid())
+  id              Int             @id @default(autoincrement())
   nama            String
   email           String          @unique
-  password        String          @map("password")
-  role            String          
-  proyekId        String?         @map("proyek_id")
+  passwordHash    String          @map("password_hash")
+  role            String          @map("role")
   divisi          String?         
   
-  proyek          Proyek?         @relation(fields: [proyekId], references: [id])
+  // Hubungan ke tabel perantara UserProyek (Many-to-Many)
+  proyek          UserProyek[]
   reimbursements  Reimbursement[]
   approvals       Approval[]
   auditTrails     AuditTrail[]
@@ -30,55 +30,71 @@ model User {
 }
 
 model Proyek {
-  id             String          @id @default(uuid())
+  id             Int             @id @default(autoincrement())
   nama           String
-  deskripsi      String?
+  deskripsi      String?         @db.Text
   status         String          
   tanggalMulai   DateTime        @map("tanggal_mulai")
   tanggalSelesai DateTime?       @map("tanggal_selesai")
   
-  users          User[]
+  // Hubungan ke tabel perantara UserProyek
+  users          UserProyek[]
   budget         Budget?
   reimbursements Reimbursement[]
 
   @@map("proyek")
 }
 
+// Tabel Perantara (Junction Table) Many-to-Many
+model UserProyek {
+  id        Int      @id @default(autoincrement())
+  proyekId  Int      @map("proyek_id")
+  userId    Int      @map("user_id")
+  role      String   @map("role")
+  joinedAt  DateTime @default(now()) @map("joined_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  proyek    Proyek   @relation(fields: [proyekId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, proyekId])
+  @@map("user_proyek")
+}
+
 model Budget {
-  id                  String         @id @default(uuid())
-  proyekId            String         @unique @map("proyek_id")
+  id                  Int            @id @default(autoincrement())
+  proyekId            Int            @unique @map("proyek_id")
   rabTotal            Decimal        @map("rab_total") @db.Decimal(15, 2)
   totalPengeluaran    Decimal        @default(0) @map("total_pengeluaran") @db.Decimal(15, 2)
   totalReimbursement  Decimal        @default(0) @map("total_reimbursement") @db.Decimal(15, 2)
   sisaBudget          Decimal        @map("sisa_budget") @db.Decimal(15, 2)
   
-  proyek            Proyek         @relation(fields: [proyekId], references: [id], onDelete: Cascade)
-  posAnggaran       PosAnggaran[]
+  proyek              Proyek         @relation(fields: [proyekId], references: [id], onDelete: Cascade)
+  posAnggaran         PosAnggaran[]
 
   @@map("budget")
 }
 
 model PosAnggaran {
-  id              String            @id @default(uuid())
-  budgetId        String            @map("budget_id")
-  deskripsi       String            @map("nama_pos")
+  id              Int               @id @default(autoincrement())
+  budgetId        Int               @map("budget_id")
+  namaPos         String            @map("nama_pos")
   nominalAlokasi  Decimal           @map("nominal_alokasi") @db.Decimal(15, 2)
   nominalTerpakai Decimal           @default(0) @map("nominal_terpakai") @db.Decimal(15, 2)
   
-  budget         Budget             @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  reimbursements Reimbursement[]
+  budget          Budget            @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  reimbursements  Reimbursement[]
 
   @@map("pos_anggaran")
 }
 
 model Reimbursement {
-  id              String             @id @default(uuid())
-  userId          String             @map("user_id")
-  proyekId        String             @map("proyek_id")
-  posAnggaranId   String             @map("pos_anggaran_id")
+  id              Int                @id @default(autoincrement())
+  userId          Int                @map("user_id")
+  proyekId        Int                @map("proyek_id")
+  posAnggaranId   Int                @map("pos_anggaran_id")
   nominal         Decimal            @db.Decimal(15, 2)
-  strukUrl        String             @map("struk_url")
-  ocrData         Json               @map("ocr_data") // Menyimpan data hasil ekstraksi teks AI OCR dalam bentuk JSON
+  urlStruk        String             @map("url_struk")
+  ocrData         Json               @map("ocr_data")
   fraudFlag       Boolean            @default(false) @map("fraud_flag")
   status          String             
   
@@ -92,12 +108,12 @@ model Reimbursement {
 }
 
 model Approval {
-  id              String        @id @default(uuid())
-  reimbursementId String        @map("reimbursement_id")
-  approverId      String        @map("approver_id")
+  id              Int           @id @default(autoincrement())
+  reimbursementId Int           @map("reimbursement_id")
+  approverId      Int           @map("approver_id")
   level           String        
   status          String        
-  catatan         String?
+  catatan         String?       @db.Text
   timestamp       DateTime      @default(now())
   
   reimbursement   Reimbursement @relation(fields: [reimbursementId], references: [id], onDelete: Cascade)
@@ -107,23 +123,23 @@ model Approval {
 }
 
 model JurnalAkuntansi {
-  id              String          @id @default(uuid())
-  reimbursementId String          @map("reimbursement_id")
-  noAkunDebit     String          @map("no_akun_debit")
+  id              Int             @id @default(autoincrement())
+  reimbursementId Int             @map("reimbursement_id")
   noAkunKredit    String          @map("no_akun_kredit")
+  noAkunDebit     String          @map("no_akun_debit")
   nominal         Decimal         @db.Decimal(15, 2)
-  keterangan      String?
-  
+  keterangan      String?         @db.Text
+
   reimbursement   Reimbursement   @relation(fields: [reimbursementId], references: [id], onDelete: Cascade)
-  akunDebit       ChartOfAccounts @relation("DebitAccount", fields: [noAkunDebit], references: [nomorAkun])
-  akunKredit      ChartOfAccounts @relation("KreditAccount", fields: [noAkunKredit], references: [nomorAkun])
+  akunDebit       ChartOfAccounts @relation("DebitAccount", fields: [noAkunDebit], references: [id])
+  akunKredit      ChartOfAccounts @relation("KreditAccount", fields: [noAkunKredit], references: [id])
 
   @@map("jurnal_akuntansi")
 }
 
 model ChartOfAccounts {
-  id            String            @id @default(uuid())
-  nomorAkun     String            @unique @map("nomor_akun")
+  id            String            @id
+  nomorAkun     Int               @map("nomor_akun")
   namaAkun      String            @map("nama_akun")
   tipe          String            
   standar       String            
@@ -135,10 +151,10 @@ model ChartOfAccounts {
 }
 
 model AuditTrail {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  aksi      String   // submit, approve, tolak, jurnal
-  detail    String   // detail deskripsi
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  aksi      String   
+  detail    String   
   timestamp DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -147,9 +163,9 @@ model AuditTrail {
 }
 
 model Notification {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  tipe      String   // alert, status_update, approval_request
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  tipe      String   
   pesan     String
   dibaca    Boolean  @default(false)
   timestamp DateTime @default(now())

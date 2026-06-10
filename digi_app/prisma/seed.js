@@ -25,6 +25,7 @@ async function main() {
   await prisma.reimbursement.deleteMany();
   await prisma.posAnggaran.deleteMany();
   await prisma.budget.deleteMany();
+  await prisma.userProyek.deleteMany(); // Membersihkan tabel perantara baru
   await prisma.proyek.deleteMany();
   await prisma.auditTrail.deleteMany();
   await prisma.notification.deleteMany();
@@ -38,11 +39,11 @@ async function main() {
   // 3. Create Chart of Accounts (CoA)
   console.log('Seeding Chart of Accounts (CoA)...');
   const coaData = [
-    { nomorAkun: '10000', namaAkun: 'Kas & Bank', tipe: 'Asset', standar: 'IFRS' },
-    { nomorAkun: '50001', namaAkun: 'Beban Perlengkapan & ATK', tipe: 'Expense', standar: 'IFRS' },
-    { nomorAkun: '50002', namaAkun: 'Beban Bahan Bangunan & Sipil', tipe: 'Expense', standar: 'IFRS' },
-    { nomorAkun: '50003', namaAkun: 'Beban Transportasi & Logistik', tipe: 'Expense', standar: 'IFRS' },
-    { nomorAkun: '21000', namaAkun: 'Utang Reimbursement Karyawan', tipe: 'Liability', standar: 'IFRS' },
+    { id: 'COA-KAS', nomorAkun: 10000, namaAkun: 'Kas & Bank', tipe: 'Asset', standar: 'IFRS' },
+    { id: 'COA-EXP-ATK', nomorAkun: 50001, namaAkun: 'Beban Perlengkapan & ATK', tipe: 'Expense', standar: 'IFRS' },
+    { id: 'COA-EXP-SIPIL', nomorAkun: 50002, namaAkun: 'Beban Bahan Bangunan & Sipil', tipe: 'Expense', standar: 'IFRS' },
+    { id: 'COA-EXP-LOG', nomorAkun: 50003, namaAkun: 'Beban Transportasi & Logistik', tipe: 'Expense', standar: 'IFRS' },
+    { id: 'COA-LIAB', nomorAkun: 21000, namaAkun: 'Utang Reimbursement Karyawan', tipe: 'Liability', standar: 'IFRS' },
   ];
 
   for (const coa of coaData) {
@@ -61,15 +62,14 @@ async function main() {
     },
   });
 
-  // 5. Create default users associated with roles and the project
+  // 5. Create default users
   console.log('Seeding initial users...');
   const employee = await prisma.user.create({
     data: {
       nama: 'Taraka Yumna',
       email: 'karyawan@digi.com',
-      password: hashedPassword,
+      passwordHash: hashedPassword,
       role: 'Karyawan',
-      proyekId: project.id,
       divisi: 'Site Operations',
     },
   });
@@ -78,9 +78,8 @@ async function main() {
     data: {
       nama: 'Muhammad Alvin Ababil',
       email: 'pm@digi.com',
-      password: hashedPassword,
+      passwordHash: hashedPassword,
       role: 'Project Manager',
-      proyekId: project.id,
       divisi: 'Project Management Office',
     },
   });
@@ -89,7 +88,7 @@ async function main() {
     data: {
       nama: 'Daisaq Albar',
       email: 'keuangan@digi.com',
-      password: hashedPassword,
+      passwordHash: hashedPassword,
       role: 'Tim Keuangan',
       divisi: 'Finance & Accounting',
     },
@@ -99,15 +98,34 @@ async function main() {
     data: {
       nama: 'Ghanif Akbar',
       email: 'direktur@digi.com',
-      password: hashedPassword,
+      passwordHash: hashedPassword,
       role: 'Direktur / Manajemen',
       divisi: 'Executive Board',
     },
   });
 
-  // 6. Create budget and detailed post allocations for the project
+  // 6. Connect users to the project via UserProyek junction table
+  console.log('Connecting users to the project...');
+  await prisma.userProyek.createMany({
+    data: [
+      {
+        userId: employee.id,
+        proyekId: project.id,
+        role: 'Anggota Lapangan',
+        joinedAt: new Date(),
+      },
+      {
+        userId: pm.id,
+        proyekId: project.id,
+        role: 'Project Manager',
+        joinedAt: new Date(),
+      },
+    ],
+  });
+
+  // 7. Create budget and detailed post allocations for the project
   console.log('Seeding project budget & pos allocations...');
-  const budget = await prisma.budget.create({
+  await prisma.budget.create({
     data: {
       proyekId: project.id,
       rabTotal: 150000000.00, // Rp 150,000,000
@@ -116,15 +134,15 @@ async function main() {
       sisaBudget: 150000000.00,
       posAnggaran: {
         create: [
-          { deskripsi: 'Perlengkapan & ATK', nominalAlokasi: 20000000.00, nominalTerpakai: 0.00 },
-          { deskripsi: 'Bahan Bangunan & Sipil', nominalAlokasi: 100000000.00, nominalTerpakai: 0.00 },
-          { deskripsi: 'Transportasi & Logistik', nominalAlokasi: 30000000.00, nominalTerpakai: 0.00 },
+          { namaPos: 'Perlengkapan & ATK', nominalAlokasi: 20000000.00, nominalTerpakai: 0.00 },
+          { namaPos: 'Bahan Bangunan & Sipil', nominalAlokasi: 100000000.00, nominalTerpakai: 0.00 },
+          { namaPos: 'Transportasi & Logistik', nominalAlokasi: 30000000.00, nominalTerpakai: 0.00 },
         ],
       },
     },
   });
 
-  // 7. Seed initial Audit log
+  // 8. Seed initial Audit log
   await prisma.auditTrail.create({
     data: {
       userId: pm.id,

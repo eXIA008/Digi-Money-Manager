@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 export async function POST(req: NextRequest) {
   try {
     const role = req.headers.get('x-user-role');
-    
+
     // Smart chat is restricted to PM, Tim Keuangan, or Direktur / Manajemen
     if (role !== 'Project Manager' && role !== 'Tim Keuangan' && role !== 'Direktur / Manajemen') {
       return NextResponse.json({ message: 'Forbidden: Unauthorized to use Smart Chat' }, { status: 403 });
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
           responseText += `- **Proyek ${b.proyek.nama}**: Sisa budget Rp ${sisa.toLocaleString()} dari total Rp ${total.toLocaleString()} (${pct}% tersisa).\n`;
         });
       }
-    } 
+    }
     // 2. Pengeluaran terbesar query
     else if (lowerMessage.includes('pengeluaran terbesar') || lowerMessage.includes('transaksi terbesar') || lowerMessage.includes('terbesar')) {
       const largestRb = await prisma.reimbursement.findFirst({
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
         const nominal = Number(largestRb.nominal);
         responseText = `Pengeluaran terbesar yang telah dicairkan di sistem adalah pengajuan dari **${largestRb.user.nama}** untuk proyek **${largestRb.proyek.nama}** (Pos Anggaran: ${largestRb.posAnggaran.deskripsi}) sebesar **Rp ${nominal.toLocaleString()}**.`;
       }
-    } 
+    }
     // 3. Pending approvals query
     else if (lowerMessage.includes('pending') || lowerMessage.includes('menunggu') || lowerMessage.includes('antrian') || lowerMessage.includes('approval')) {
       const pendingRbs = await prisma.reimbursement.findMany({
@@ -97,11 +97,11 @@ export async function POST(req: NextRequest) {
     // 5. Default fallback helper
     else {
       responseText = `Halo! Saya asisten pintar Digi Money Manager. Anda dapat menanyakan tentang data keuangan real-time dari database. 
-Contoh pertanyaan yang dapat Anda ajukan:
-1. *"Berapa sisa budget proyek saat ini?"*
-2. *"Apa pengeluaran terbesar yang tercatat?"*
-3. *"Berapa banyak reimbursement yang pending?"*
-4. *"Bagaimana status jurnal akuntansi dan CoA?"*`;
+        Contoh pertanyaan yang dapat Anda ajukan:
+        1. *"Berapa sisa budget proyek saat ini?"*
+        2. *"Apa pengeluaran terbesar yang tercatat?"*
+        3. *"Berapa banyak reimbursement yang pending?"*
+        4. *"Bagaimana status jurnal akuntansi dan CoA?"*`;
     }
 
     return NextResponse.json({
