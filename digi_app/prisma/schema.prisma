@@ -3,11 +3,131 @@
 
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
-generator client {
-  provider = "prisma-client"
-  output   = "../app/generated/prisma"
-}
-
 datasource db {
   provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              String          @id @default(uuid())
+  nama            String
+  email           String          @unique
+  password        String          @map("password")
+  role            String          
+  proyekId        String?         @map("proyek_id")
+  divisi          String?         
+  
+  proyek          Proyek?         @relation(fields: [proyekId], references: [id])
+  reimbursements  Reimbursement[]
+  approvals       Approval[]
+
+  @@map("users")
+}
+
+model Proyek {
+  id             String          @id @default(uuid())
+  nama           String
+  deskripsi      String?
+  status         String          
+  tanggalMulai   DateTime        @map("tanggal_mulai")
+  tanggalSelesai DateTime?       @map("tanggal_selesai")
+  
+  users          User[]
+  budget         Budget?
+  reimbursements Reimbursement[]
+
+  @@map("proyek")
+}
+
+model Budget {
+  id                  String         @id @default(uuid())
+  proyekId            String         @unique @map("proyek_id")
+  rabTotal            Decimal        @map("rab_total") @db.Decimal(15, 2)
+  totalPengeluaran    Decimal        @default(0) @map("total_pengeluaran") @db.Decimal(15, 2)
+  totalReimbursement  Decimal        @default(0) @map("total_reimbursement") @db.Decimal(15, 2)
+  sisaBudget          Decimal        @map("sisa_budget") @db.Decimal(15, 2)
+  
+  proyek            Proyek         @relation(fields: [proyekId], references: [id], onDelete: Cascade)
+  posAnggaran       PosAnggaran[]
+
+  @@map("budget")
+}
+
+model PosAnggaran {
+  id              String            @id @default(uuid())
+  budgetId        String            @map("budget_id")
+  deskripsi       String            @map("nama_pos")
+  nominalAlokasi  Decimal           @map("nominal_alokasi") @db.Decimal(15, 2)
+  nominalTerpakai Decimal           @default(0) @map("nominal_terpakai") @db.Decimal(15, 2)
+  
+  budget         Budget             @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  reimbursements Reimbursement[]
+
+  @@map("pos_anggaran")
+}
+
+model Reimbursement {
+  id              String             @id @default(uuid())
+  userId          String             @map("user_id")
+  proyekId        String             @map("proyek_id")
+  posAnggaranId   String             @map("pos_anggaran_id")
+  nominal         Decimal            @db.Decimal(15, 2)
+  strukUrl        String             @map("struk_url")
+  ocrData         Json               @map("ocr_data") // Menyimpan data hasil ekstraksi teks AI OCR dalam bentuk JSON
+  fraudFlag       Boolean            @default(false) @map("fraud_flag")
+  status          String             
+  
+  user            User               @relation(fields: [userId], references: [id])
+  proyek          Proyek             @relation(fields: [proyekId], references: [id])
+  posAnggaran     PosAnggaran        @relation(fields: [posAnggaranId], references: [id])
+  approvals       Approval[]
+  jurnalAkuntansi JurnalAkuntansi[]
+
+  @@map("reimbursement")
+}
+
+model Approval {
+  id              String        @id @default(uuid())
+  reimbursementId String        @map("reimbursement_id")
+  approverId      String        @map("approver_id")
+  level           String        
+  status          String        
+  catatan         String?
+  timestamp       DateTime      @default(now())
+  
+  reimbursement   Reimbursement @relation(fields: [reimbursementId], references: [id], onDelete: Cascade)
+  approver        User          @relation(fields: [approverId], references: [id])
+
+  @@map("approval")
+}
+
+model JurnalAkuntansi {
+  id              String          @id @default(uuid())
+  reimbursementId String          @map("reimbursement_id")
+  noAkunDebit     String          @map("no_akun_debit")
+  noAkunKredit    String          @map("no_akun_kredit")
+  nominal         Decimal         @db.Decimal(15, 2)
+  keterangan      String?
+  
+  reimbursement   Reimbursement   @relation(fields: [reimbursementId], references: [id], onDelete: Cascade)
+  akunDebit       ChartOfAccounts @relation("DebitAccount", fields: [noAkunDebit], references: [nomorAkun])
+  akunKredit      ChartOfAccounts @relation("KreditAccount", fields: [noAkunKredit], references: [nomorAkun])
+
+  @@map("jurnal_akuntansi")
+}
+
+model ChartOfAccounts {
+  id            String            @id @default(uuid())
+  nomorAkun     String            @unique @map("nomor_akun")
+  namaAkun      String            @map("nama_akun")
+  tipe          String            
+  standar       String            
+  
+  jurnalDebit   JurnalAkuntansi[] @relation("DebitAccount")
+  jurnalKredit  JurnalAkuntansi[] @relation("KreditAccount")
+
+  @@map("chart_of_accounts")
 }
