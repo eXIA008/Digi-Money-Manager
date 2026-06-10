@@ -267,11 +267,7 @@ function PencairanContent() {
                           <div className="mt-0.5">
                             <div className="flex items-center gap-1">
                               <span className="text-[13px] font-bold text-stone-900">{item.user?.nama || 'Karyawan'}</span>
-<<<<<<< HEAD
-                              <span className="text-[11px] text-stone-400">· {item.id}</span>
-=======
                               <span className="text-[11px] text-stone-400">· {String(item.id).substring(0, 8).toUpperCase()}</span>
->>>>>>> 4079185525073e491714eaab87a78de685f78e10
                             </div>
                             <p className="text-[11px] text-stone-500 mt-0.5">{projectDesc}</p>
                           </div>
