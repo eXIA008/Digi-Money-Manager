@@ -35,6 +35,7 @@ export default function HeaderKeuangan({ onOpenSidebar }: HeaderKeuanganProps) {
     fetch("/api/auth/me")
       .then((res) => {
         if (res.ok) return res.json();
+        window.location.href = "/login";
         throw new Error("Failed to fetch profile");
       })
       .then((data) => {

@@ -74,7 +74,8 @@ export async function middleware(req: NextRequest) {
   // 1. Exclude public static files, images, login pages, and register page
   if (
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/api/auth') ||
+    pathname === '/api/auth/login' ||
+    pathname === '/api/auth/register' ||
     pathname === '/login' ||
     pathname === '/register' ||
     pathname === '/api-docs' ||
@@ -167,10 +168,12 @@ export async function middleware(req: NextRequest) {
 
   // Valid session, store parsed payload headers for upstream API handlers
   const requestHeaders = new Headers(req.headers);
-  requestHeaders.set('x-user-id', payload.id);
-  requestHeaders.set('x-user-email', payload.email);
-  requestHeaders.set('x-user-role', payload.role);
-  if (payload.proyekId) requestHeaders.set('x-user-proyek-id', payload.proyekId);
+  requestHeaders.set('x-user-id', String(payload.id));
+  requestHeaders.set('x-user-email', String(payload.email));
+  requestHeaders.set('x-user-role', String(payload.role));
+  if (payload.proyekId !== undefined && payload.proyekId !== null) {
+    requestHeaders.set('x-user-proyek-id', String(payload.proyekId));
+  }
 
   return NextResponse.next({
     request: {

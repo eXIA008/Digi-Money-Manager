@@ -155,10 +155,10 @@ export default function JurnalAkuntansiPage() {
       const formattedNominal = Number(item.Nominal).toLocaleString('id-ID');
 
       const entry: JournalEntry = {
-        id: `JE-${item.ID.substring(0, 8).toUpperCase()}`,
+        id: `JE-${String(item.ID).substring(0, 8).toUpperCase()}`,
         tanggal: formatTanggal(item.Tanggal),
         keterangan: item.Keterangan,
-        ref: `RB-${item.ID.substring(0, 8).toUpperCase()}`,
+        ref: `RB-${String(item.ID).substring(0, 8).toUpperCase()}`,
         lines: [
           { type: "Dr", kode: dbCode, akun: dbName, debit: formattedNominal, kredit: null },
           { type: "Cr", kode: crCode, akun: crName, debit: null, kredit: formattedNominal }

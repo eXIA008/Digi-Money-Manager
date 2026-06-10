@@ -60,7 +60,7 @@ export default function RiwayatPengajuanPage() {
         if (data.reimbursements) {
           setRawReimbursements(data.reimbursements);
           const mapped = data.reimbursements.map((r: any) => ({
-            id: r.id.substring(0, 8).toUpperCase(),
+            id: String(r.id).substring(0, 8).toUpperCase(),
             dbId: r.id,
             date: r.ocrData?.tanggal ? formatTanggal(r.ocrData.tanggal) : 'N/A',
             merchant: r.ocrData?.merchant || 'N/A',
