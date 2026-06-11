@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Filter, Eye, X, Download, RefreshCw, CheckCircle2, Clock, XCircle, AlertTriangle, BookOpen, ArrowUpDown } from "lucide-react";
 import Sidebar from '@/components/sidebar';
 import Header from '@/components/header';
 
 type Submission = {
   id: string;
-  dbId: string;
+  dbId: number;
   date: string;
   rawDate: string;
   merchant: string;
@@ -69,7 +70,7 @@ interface ApprovalStep {
   status: StepStatus;
 }
 
-function getApprovalSteps(raw: any): ApprovalStep[] {
+function getApprovalSteps(raw: any, allRaw: any[] = []): ApprovalStep[] {
   const status = raw.status;
   const approvals = raw.approvals || [];
   const pmApproval = approvals.find((a: any) => a.level === "PM");
@@ -90,53 +91,77 @@ function getApprovalSteps(raw: any): ApprovalStep[] {
     ? `${submitterName} • ${formatApprovalDate(submittedDate)}`
     : submitterName;
 
+  let steps: ApprovalStep[];
+
   if (status === "SUBMITTED") {
-    return [
+    steps = [
       { label: "Pengajuan dikirim", sublabel: submittedLabel, status: "done" },
       { label: "Validasi Project Manager", sublabel: `${pmApprover} • Menunggu`, status: "active" },
       { label: "Verifikasi Tim Keuangan", sublabel: "Menunggu • —", status: "waiting" },
       { label: "Dicairkan", sublabel: "Jurnal otomatis • —", status: "waiting" },
     ];
-  }
-
-  if (status === "APPROVED_BY_PM") {
+  } else if (status === "APPROVED_BY_PM") {
     const pmDate = pmApproval ? formatApprovalDate(pmApproval.timestamp) : "";
-    return [
+    steps = [
       { label: "Pengajuan dikirim", sublabel: submittedLabel, status: "done" },
       { label: "Validasi Project Manager", sublabel: `${pmApprover}${pmDate ? " • " + pmDate : ""}`, status: "done" },
       { label: "Verifikasi Tim Keuangan", sublabel: "Menunggu • —", status: "active" },
       { label: "Dicairkan", sublabel: "Jurnal otomatis • —", status: "waiting" },
     ];
-  }
-
-  if (status === "APPROVED") {
+  } else if (status === "APPROVED") {
     const pmDate = pmApproval ? formatApprovalDate(pmApproval.timestamp) : "";
     const finDate = financeApproval ? formatApprovalDate(financeApproval.timestamp) : "";
     const disbursedDate = raw.disbursedAt ? formatApprovalDate(raw.disbursedAt) : finDate;
-    return [
+    steps = [
       { label: "Pengajuan dikirim", sublabel: submittedLabel, status: "done" },
       { label: "Validasi Project Manager", sublabel: `${pmApprover}${pmDate ? " • " + pmDate : ""}`, status: "done" },
       { label: "Verifikasi Tim Keuangan", sublabel: `${financeApprover}${finDate ? " • " + finDate : ""}`, status: "done" },
       { label: "Dicairkan", sublabel: `Jurnal otomatis${disbursedDate ? " • " + disbursedDate : ""}`, status: "done" },
     ];
-  }
-
-  if (status === "REJECTED") {
+  } else if (status === "REJECTED") {
     const pmDate = pmApproval ? formatApprovalDate(pmApproval.timestamp) : "";
-    return [
+    steps = [
       { label: "Pengajuan dikirim", sublabel: submittedLabel, status: "done" },
       { label: "Validasi Project Manager", sublabel: `${pmApprover}${pmDate ? " • " + pmDate : ""}`, status: "rejected" },
       { label: "Verifikasi Tim Keuangan", sublabel: "Menunggu • —", status: "waiting" },
       { label: "Dicairkan", sublabel: "Jurnal otomatis • —", status: "waiting" },
     ];
+  } else {
+    steps = [
+      { label: "Pengajuan dikirim", sublabel: submittedLabel, status: "done" },
+      { label: "Validasi Project Manager", sublabel: "Menunggu", status: "active" },
+      { label: "Verifikasi Tim Keuangan", sublabel: "Menunggu", status: "waiting" },
+      { label: "Dicairkan", sublabel: "Jurnal otomatis", status: "waiting" },
+    ];
   }
 
-  return [
-    { label: "Pengajuan dikirim", sublabel: submittedLabel, status: "done" },
-    { label: "Validasi Project Manager", sublabel: "Menunggu", status: "active" },
-    { label: "Verifikasi Tim Keuangan", sublabel: "Menunggu", status: "waiting" },
-    { label: "Dicairkan", sublabel: "Jurnal otomatis", status: "waiting" },
-  ];
+  // If this submission was created via "Ajukan ulang" from a previously rejected
+  // one, prepend the original's "Pengajuan dikirim" + rejection steps, and relabel
+  // this record's own submission step as "Pengajuan ulang dikirim".
+  const resubmitFromId = raw.ocrData?.resubmitFrom;
+  const original = resubmitFromId ? allRaw.find((r: any) => r.id === resubmitFromId) : null;
+  if (original) {
+    const originalSubmittedDate = original.createdAt || original.ocrData?.tanggal;
+    const originalSubmitterName = original.user?.nama || "Karyawan";
+    const originalSubmittedLabel = originalSubmittedDate
+      ? `${originalSubmitterName} • ${formatApprovalDate(originalSubmittedDate)}`
+      : originalSubmitterName;
+
+    const originalApprovals = original.approvals || [];
+    const rejectedApproval = originalApprovals.find((a: any) => a.status === "REJECTED");
+    const rejectedByFinance = rejectedApproval?.level === "FINANCE" || rejectedApproval?.level === "KEUANGAN";
+    const rejecterLabel = rejectedByFinance ? "Ditolak oleh Tim Keuangan" : "Ditolak oleh Project Manager";
+    const rejecterName = rejectedApproval?.approver?.nama || (rejectedByFinance ? "Muhammad Zaini" : "Muhammad Alvin Ababli");
+    const rejectedDate = rejectedApproval ? formatApprovalDate(rejectedApproval.timestamp) : "";
+
+    steps[0] = { ...steps[0], label: "Pengajuan ulang dikirim" };
+    steps.unshift(
+      { label: "Pengajuan dikirim", sublabel: originalSubmittedLabel, status: "done" },
+      { label: rejecterLabel, sublabel: `${rejecterName}${rejectedDate ? " • " + rejectedDate : ""}`, status: "rejected" },
+    );
+  }
+
+  return steps;
 }
 
 function StepIcon({ status, number }: { status: StepStatus; number: number }) {
@@ -173,15 +198,31 @@ function StepIcon({ status, number }: { status: StepStatus; number: number }) {
   );
 }
 
-function DetailPanel({ raw, displayId, onClose }: { raw: any; displayId: string; onClose: () => void }) {
+function DetailPanel({ raw, displayId, allRaw, onClose, onRequestCancel, onResubmit, onViewRelated, actionLoading, actionError }: {
+  raw: any;
+  displayId: string;
+  allRaw: any[];
+  onClose: () => void;
+  onRequestCancel: () => void;
+  onResubmit: () => void;
+  onViewRelated: (dbId: number, displayId: string) => void;
+  actionLoading: boolean;
+  actionError: string | null;
+}) {
   const status = raw.status;
   const uiStatus =
     status === "SUBMITTED" ? "Menunggu PM" :
     status === "APPROVED_BY_PM" ? "Verifikasi Keuangan" :
     status === "APPROVED" ? "Dicairkan" : "Ditolak";
 
-  const steps = getApprovalSteps(raw);
+  const steps = getApprovalSteps(raw, allRaw);
   const rejectionNote = raw.approvals?.find((a: any) => a.status === "REJECTED")?.catatan || "";
+
+  // If this (rejected) submission has already been resubmitted, link to the new one
+  const resubmittedRecord = allRaw.find((r: any) => r.ocrData?.resubmitFrom === raw.id);
+  const resubmittedAs = resubmittedRecord
+    ? { dbId: resubmittedRecord.id, displayId: makeDisplayId(String(resubmittedRecord.id), allRaw.findIndex((r: any) => r.id === resubmittedRecord.id)) }
+    : null;
 
   const nominalFormatted = `Rp ${Number(raw.nominal).toLocaleString("id-ID")}`;
   const tanggal = raw.ocrData?.tanggal ? formatTanggalLong(raw.ocrData.tanggal) : "N/A";
@@ -248,6 +289,27 @@ function DetailPanel({ raw, displayId, onClose }: { raw: any; displayId: string;
               <p className="text-[12px] font-bold text-[#be123c] mb-1">Alasan Penolakan</p>
               <p className="text-[12px] text-stone-700 leading-relaxed">Pos konsumsi proyek ini sudah melebihi alokasi bulan ini. Silakan ajukan ulang bulan depan</p>
             </div>
+          </div>
+        )}
+
+        {/* Sudah diajukan ulang */}
+        {status === "REJECTED" && resubmittedAs && (
+          <div className="rounded-xl border border-[#bce0f7] bg-[#f0f8ff] p-4 flex items-center justify-between gap-3">
+            <div className="flex gap-3">
+              <RefreshCw size={16} className="text-[#0277bd] flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[12px] font-bold text-[#0277bd] mb-1">Sudah diajukan ulang</p>
+                <p className="text-[12px] text-stone-700 leading-relaxed">
+                  Pengajuan ini sudah diajukan ulang sebagai <span className="font-semibold">{resubmittedAs.displayId}</span>.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => onViewRelated(resubmittedAs.dbId, resubmittedAs.displayId)}
+              className="flex-shrink-0 px-3 py-1.5 bg-white border border-[#bce0f7] hover:bg-[#e1f5fe] text-[#0277bd] rounded-lg text-[11px] font-semibold transition cursor-pointer"
+            >
+              Lihat
+            </button>
           </div>
         )}
 
@@ -349,46 +411,57 @@ function DetailPanel({ raw, displayId, onClose }: { raw: any; displayId: string;
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-stone-150 bg-white flex items-center justify-between gap-2">
-        {raw.strukUrl ? (
-          <a
-            href={raw.strukUrl}
-            download={`bukti-${displayId}.png`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 border border-stone-200 rounded-xl text-[12px] font-medium text-stone-700 hover:bg-stone-50 transition cursor-pointer"
-          >
-            <Download size={14} />
-            Download bukti
-          </a>
-        ) : (
-          <button className="flex items-center gap-2 px-4 py-2 border border-stone-200 rounded-xl text-[12px] font-medium text-stone-700 hover:bg-stone-50 transition opacity-50 cursor-not-allowed" disabled>
-            <Download size={14} />
-            Download bukti
-          </button>
+      <div className="px-6 py-4 border-t border-stone-150 bg-white flex flex-col gap-2.5">
+        {actionError && (
+          <p className="text-[11px] text-[#be123c] bg-[#fff5f5] border border-[#fbc9c9] rounded-lg px-3 py-2">
+            {actionError}
+          </p>
         )}
-        <div className="flex items-center gap-2">
-          {status === "REJECTED" && (
-            <button className="flex items-center gap-2 px-4 py-2 bg-[#1a7a5e] hover:bg-[#15644c] text-white rounded-xl text-[12px] font-semibold transition cursor-pointer">
-              <RefreshCw size={14} />
-              Ajukan ulang
+        <div className="flex items-center justify-between gap-2">
+          {raw.strukUrl ? (
+            <a
+              href={raw.strukUrl}
+              download={`bukti-${displayId}.png`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 border border-stone-200 rounded-xl text-[12px] font-medium text-stone-700 hover:bg-stone-50 transition cursor-pointer"
+            >
+              <Download size={14} />
+              Download bukti
+            </a>
+          ) : (
+            <button className="flex items-center gap-2 px-4 py-2 border border-stone-200 rounded-xl text-[12px] font-medium text-stone-700 hover:bg-stone-50 transition opacity-50 cursor-not-allowed" disabled>
+              <Download size={14} />
+              Download bukti
             </button>
           )}
-          {status !== "REJECTED" && (
+          <div className="flex items-center gap-2">
+            {status === "REJECTED" && (
+              <button
+                onClick={onResubmit}
+                className="flex items-center gap-2 px-4 py-2 bg-[#1a7a5e] hover:bg-[#15644c] text-white rounded-xl text-[12px] font-semibold transition cursor-pointer"
+              >
+                <RefreshCw size={14} />
+                Ajukan ulang
+              </button>
+            )}
+            {status === "SUBMITTED" && (
+              <button
+                onClick={onRequestCancel}
+                disabled={actionLoading}
+                className="flex items-center gap-2 px-3 py-2 border border-stone-200 rounded-xl text-[12px] font-medium text-stone-500 hover:bg-stone-50 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <X size={14} />
+                Batalkan
+              </button>
+            )}
             <button
               onClick={onClose}
-              className="flex items-center gap-2 px-3 py-2 border border-stone-200 rounded-xl text-[12px] font-medium text-stone-500 hover:bg-stone-50 transition cursor-pointer"
+              className="px-5 py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-[12px] font-semibold transition cursor-pointer"
             >
-              <X size={14} />
-              Batalkan
+              Tutup
             </button>
-          )}
-          <button
-            onClick={onClose}
-            className="px-5 py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-[12px] font-semibold transition cursor-pointer"
-          >
-            Tutup
-          </button>
+          </div>
         </div>
       </div>
     </div>
@@ -396,6 +469,7 @@ function DetailPanel({ raw, displayId, onClose }: { raw: any; displayId: string;
 }
 
 export default function RiwayatPengajuanPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("Semua");
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [rawReimbursements, setRawReimbursements] = useState<any[]>([]);
@@ -411,39 +485,42 @@ export default function RiwayatPengajuanPage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
 
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+
+  const fetchReimbursements = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/reimbursements');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.reimbursements) {
+        setRawReimbursements(data.reimbursements);
+        const mapped: Submission[] = data.reimbursements.map((r: any, i: number) => ({
+          id: makeDisplayId(String(r.id), i),
+          dbId: r.id,
+          date: r.ocrData?.tanggal ? formatTanggal(r.ocrData.tanggal) : formatTanggal(r.createdAt?.split('T')[0] || ''),
+          rawDate: r.ocrData?.tanggal || r.createdAt || '',
+          merchant: r.ocrData?.merchant || 'N/A',
+          project: r.proyek?.nama || 'N/A',
+          pos: r.posAnggaran?.deskripsi || r.posAnggaran?.namaPos || 'N/A',
+          amount: `Rp ${Number(r.nominal).toLocaleString('id-ID')}`,
+          status: (r.status === 'SUBMITTED' ? 'Menunggu PM' :
+                  r.status === 'APPROVED_BY_PM' ? 'Verifikasi Keuangan' :
+                  r.status === 'APPROVED' ? 'Dicairkan' : 'Ditolak') as Submission["status"]
+        }));
+        setSubmissions(mapped);
+      }
+    } catch (err) {
+      console.error('Error fetching submissions:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    setIsLoading(true);
-    fetch('/api/reimbursements')
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then(data => {
-        if (data.reimbursements) {
-          setRawReimbursements(data.reimbursements);
-          const mapped: Submission[] = data.reimbursements.map((r: any, i: number) => ({
-            id: `RB-${String(r.id).padStart(4, '0')}`,
-            dbId: String(r.id),
-            date: r.ocrData?.tanggal ? formatTanggal(r.ocrData.tanggal) : formatTanggal(r.createdAt?.split('T')[0] || ''),
-            rawDate: r.ocrData?.tanggal || r.createdAt || '',
-            merchant: r.ocrData?.merchant || 'N/A',
-            project: r.proyek?.nama || 'N/A',
-            pos: r.posAnggaran?.deskripsi || r.posAnggaran?.namaPos || 'N/A',
-            amount: `Rp ${Number(r.nominal).toLocaleString('id-ID')}`,
-            status: (
-              r.status === 'SUBMITTED' ? 'Menunggu PM' :
-              r.status === 'APPROVED_BY_PM' ? 'Verifikasi Keuangan' :
-              r.status === 'APPROVED' ? 'Dicairkan' : 'Ditolak'
-            ) as Submission['status'],
-          }));
-          setSubmissions(mapped);
-        }
-      })
-      .catch(err => {
-        console.error('Error fetching submissions:', err);
-      })
-      .finally(() => setIsLoading(false));
+    fetchReimbursements();
   }, []);
 
   // Extract unique projects and pos categories dynamically
@@ -476,18 +553,61 @@ export default function RiwayatPengajuanPage() {
       return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
     });
 
-  const handleOpenDetail = (dbId: string, displayId: string) => {
+  const handleOpenDetail = (dbId: number, displayId: string) => {
     const raw = rawReimbursements.find(r => r.id === dbId);
     if (raw) {
       setSelectedItem(raw);
       setSelectedDisplayId(displayId);
+      setActionError(null);
+      setShowCancelModal(false);
       setTimeout(() => setPanelVisible(true), 10);
     }
   };
 
   const handleClosePanel = () => {
     setPanelVisible(false);
+    setShowCancelModal(false);
     setTimeout(() => setSelectedItem(null), 300);
+  };
+
+  // Switch the open detail panel to a related (resubmitted/original) submission
+  const handleViewRelated = (dbId: number, displayId: string) => {
+    const raw = rawReimbursements.find(r => r.id === dbId);
+    if (raw) {
+      setSelectedItem(raw);
+      setSelectedDisplayId(displayId);
+      setActionError(null);
+      setShowCancelModal(false);
+    }
+  };
+
+  // "Batalkan" - only allowed while status is SUBMITTED (Menunggu PM); permanently removes the submission
+  const handleConfirmCancel = async () => {
+    if (!selectedItem) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/reimbursements/${selectedItem.id}/cancel`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setActionError(data.message || 'Gagal membatalkan pengajuan');
+        return;
+      }
+      setShowCancelModal(false);
+      handleClosePanel();
+      await fetchReimbursements();
+    } catch (err) {
+      setActionError('Terjadi kesalahan jaringan');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // "Ajukan ulang" - only allowed for REJECTED submissions; redirects to the
+  // "Ajukan Reimbursement" page, pre-filled and ready at the Review & Kirim step
+  const handleResubmit = () => {
+    if (!selectedItem) return;
+    router.push(`/karyawan/reimbursement?resubmitId=${selectedItem.id}`);
   };
 
   return (
@@ -714,11 +834,55 @@ export default function RiwayatPengajuanPage() {
             <DetailPanel
               raw={selectedItem}
               displayId={selectedDisplayId}
+              allRaw={rawReimbursements}
               onClose={handleClosePanel}
+              onRequestCancel={() => setShowCancelModal(true)}
+              onResubmit={handleResubmit}
+              onViewRelated={handleViewRelated}
+              actionLoading={actionLoading}
+              actionError={actionError}
             />
           </>
         )}
       </div>
+
+      {/* Modal Konfirmasi Pembatalan */}
+      {showCancelModal && selectedItem && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-white rounded-2xl border border-stone-200 shadow-xl overflow-hidden p-6">
+            <h3 className="text-[16px] font-bold text-stone-900 mb-2">Batalkan Pengajuan</h3>
+            <p className="text-[13px] text-stone-600 mb-6 leading-relaxed">
+              Apakah Anda yakin ingin membatalkan pengajuan reimbursement{" "}
+              <span className="font-semibold text-stone-900">{selectedDisplayId}</span> senilai{" "}
+              <span className="font-semibold text-stone-900">Rp {Number(selectedItem.nominal).toLocaleString("id-ID")}</span>?
+              Tindakan ini bersifat permanen dan tidak dapat diurungkan.
+            </p>
+            {actionError && (
+              <p className="text-[11px] text-[#be123c] bg-[#fff5f5] border border-[#fbc9c9] rounded-lg px-3 py-2 mb-4">
+                {actionError}
+              </p>
+            )}
+            <div className="flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowCancelModal(false)}
+                disabled={actionLoading}
+                className="px-4 py-2 border border-stone-200 hover:bg-stone-50 text-[12px] font-semibold rounded-xl text-stone-600 transition cursor-pointer disabled:opacity-50"
+              >
+                Tidak, kembali
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCancel}
+                disabled={actionLoading}
+                className="px-4 py-2 bg-[#be123c] hover:bg-[#9f1030] disabled:opacity-50 text-white text-[12px] font-semibold rounded-xl transition cursor-pointer"
+              >
+                {actionLoading ? "Membatalkan..." : "Ya, batalkan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
