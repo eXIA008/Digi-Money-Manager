@@ -113,7 +113,8 @@ export default function PMDashboardPage() {
         setLoading(true);
         setError(null);
 
-        const response = await fetch("/api/dashboard", { method: "GET" });
+        const url = selectedProjectId ? `/api/dashboard?projectId=${selectedProjectId}` : "/api/dashboard";
+        const response = await fetch(url, { method: "GET" });
         if (!response.ok) {
           const msg = await response.json().catch(() => null);
           throw new Error(msg?.message || "Gagal mengambil data dari server");
