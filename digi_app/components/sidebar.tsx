@@ -43,6 +43,7 @@ const ROLE_MENUS: Record<UserRole, MenuItem[]> = {
   ],
   "Direktur / Manajemen": [
     { name: "Executive Dashboard", href: "/manager", icon: LayoutDashboard, hasBadge: false },
+    { name: "Kelola Proyek", href: "/manager/proyek", icon: Wallet, hasBadge: false },
     { name: "Smart Chat", href: "/manager/smart-chat", icon: MessageSquare, hasBadge: false },
     { name: "Profitabilitas", href: "/manager/profitabilitas", icon: TrendingUp, hasBadge: false },
     { name: "Laporan", href: "/manager/laporan", icon: FileText, hasBadge: false },

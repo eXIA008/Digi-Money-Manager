@@ -40,11 +40,15 @@ export async function GET(req: NextRequest) {
       // Employees only see their own submissions
       filter.userId = parseInt(userId, 10);
     } else if (role === 'Project Manager') {
-      // PMs see submissions belonging to their assigned project
-      if (userProyekId) {
-        filter.proyekId = parseInt(userProyekId, 10);
+      // PMs see submissions belonging to all their assigned projects
+      const pmProyeks = await prisma.userProyek.findMany({
+        where: { userId: parseInt(userId, 10) },
+        select: { proyekId: true },
+      });
+      const projectIds = pmProyeks.map((up) => up.proyekId);
+      if (projectIds.length > 0) {
+        filter.proyekId = { in: projectIds };
       } else {
-        // If PM is not assigned to a project, they see nothing or their own
         return NextResponse.json({ reimbursements: [] });
       }
     }

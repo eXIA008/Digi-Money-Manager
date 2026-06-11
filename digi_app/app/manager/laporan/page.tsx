@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FileText, TrendingUp, BarChart3, Star, Download, Loader2, CheckCircle2 } from "lucide-react";
 
 type ReportCard = {
@@ -45,18 +45,34 @@ const REPORTS: ReportCard[] = [
 export default function LaporanPage() {
   const [generating, setGenerating] = useState<string | null>(null);
   const [generated, setGenerated] = useState<Set<string>>(new Set());
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [reimbursements, setReimbursements] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/dashboard").then((res) => res.json()),
+      fetch("/api/reimbursements").then((res) => res.json()),
+    ])
+      .then(([dash, reimb]) => {
+        if (dash.dashboard) setDashboardData(dash.dashboard);
+        if (reimb.reimbursements) setReimbursements(reimb.reimbursements);
+      })
+      .catch((err) => console.error("Error fetching report data:", err))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const handleGenerate = async (id: string) => {
     if (generating) return;
     setGenerating(id);
 
     // Simulate generation delay
-    await new Promise((r) => setTimeout(r, 1800));
+    await new Promise((r) => setTimeout(r, 1500));
 
     setGenerating(null);
     setGenerated((prev) => new Set([...prev, id]));
 
-    // Build simple report content for download
+    // Build simple report content for text download
     const now = new Date().toLocaleDateString("id-ID", {
       day: "numeric",
       month: "long",
@@ -66,7 +82,6 @@ export default function LaporanPage() {
     const report = REPORTS.find((r) => r.id === id);
     const content = `Digi Money Manager\n${report?.title}\nDigenerate pada: ${now}\n\nData laporan dari database tersedia di dashboard real-time.\nGunakan fitur Smart Chat untuk analisis lebih mendalam.`;
 
-    // Download as text
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -78,23 +93,416 @@ export default function LaporanPage() {
     URL.revokeObjectURL(url);
   };
 
-  const handleDownload = (id: string, format: "PDF" | "Excel") => {
+  const handleDownloadPDF = (id: string) => {
+    const report = REPORTS.find((r) => r.id === id);
+    if (!report) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Gagal membuka jendela pratinjau. Izinkan pop-up untuk mencetak laporan.");
+      return;
+    }
+
+    const nowStr = new Date().toLocaleDateString('id-ID', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    let reportTitle = report.title;
+    let contentHtml = "";
+
+    const metrics = dashboardData?.metrics || {};
+    const projectList = dashboardData?.projectList || [];
+    const cashFlow = dashboardData?.cashFlow || [];
+
+    if (id === "executive-summary") {
+      const activeProjectsCount = metrics.activeProjectCount || 0;
+      const totalRAB = metrics.totalRABAllocated || 0;
+      const totalDisbursed = metrics.totalDisbursed || 0;
+      const margin = metrics.marginBersih || 0;
+
+      const projectRows = projectList.map((p: any) => `
+        <tr class="border-b border-slate-200 text-slate-700 text-xs">
+          <td class="py-2.5 px-4 font-mono">${p.kode}</td>
+          <td class="py-2.5 px-4 font-semibold">${p.proyekNama}</td>
+          <td class="py-2.5 px-4 text-slate-500">${p.klien}</td>
+          <td class="py-2.5 px-4 text-center">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${p.status === 'AKTIF' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}">${p.status}</span>
+          </td>
+          <td class="py-2.5 px-4 text-right font-mono">Rp ${p.rabTotal.toLocaleString('id-ID')}</td>
+          <td class="py-2.5 px-4 text-right font-mono text-red-700">Rp ${p.realisasi.toLocaleString('id-ID')}</td>
+          <td class="py-2.5 px-4 text-right font-mono text-emerald-800">Rp ${p.sisaBudget.toLocaleString('id-ID')}</td>
+          <td class="py-2.5 px-4 text-right font-mono font-bold">${p.margin}%</td>
+        </tr>
+      `).join('');
+
+      contentHtml = `
+        <div class="mb-8">
+          <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-l-4 border-[#2d6a4f] pl-2.5">Ringkasan KPI Eksekutif</h3>
+          <div class="grid grid-cols-4 gap-4">
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+              <span class="text-[9px] font-bold text-slate-400 block uppercase">PROYEK AKTIF</span>
+              <span class="text-base font-extrabold text-slate-800 mt-1 block">${activeProjectsCount} Proyek</span>
+            </div>
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+              <span class="text-[9px] font-bold text-slate-400 block uppercase">TOTAL RAB ALLOCATED</span>
+              <span class="text-base font-extrabold text-slate-800 font-mono mt-1 block">Rp ${totalRAB.toLocaleString('id-ID')}</span>
+            </div>
+            <div class="bg-[#fdf3f3] border border-[#fadaD9] rounded-xl p-4 text-center">
+              <span class="text-[9px] font-bold text-red-500 block uppercase">TOTAL REALISASI</span>
+              <span class="text-base font-extrabold text-red-700 font-mono mt-1 block">Rp ${totalDisbursed.toLocaleString('id-ID')}</span>
+            </div>
+            <div class="bg-[#edf8f4] border border-[#d1efe4] rounded-xl p-4 text-center">
+              <span class="text-[9px] font-bold text-emerald-600 block uppercase">MARGIN BERSIH</span>
+              <span class="text-base font-extrabold text-emerald-800 font-mono mt-1 block">${margin}%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-8 page-break">
+          <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-l-4 border-[#2d6a4f] pl-2.5">Daftar Realisasi Anggaran Proyek</h3>
+          <table class="w-full text-left border-collapse border border-slate-200">
+            <thead>
+              <tr class="bg-slate-100 border-b border-slate-200 text-slate-500 font-bold text-[10px] tracking-wider uppercase">
+                <th class="py-3 px-4">KODE</th>
+                <th class="py-3 px-4">NAMA PROYEK</th>
+                <th class="py-3 px-4">PM / KLIEN</th>
+                <th class="py-3 px-4 text-center">STATUS</th>
+                <th class="py-3 px-4 text-right">RAB TOTAL</th>
+                <th class="py-3 px-4 text-right">REALISASI</th>
+                <th class="py-3 px-4 text-right">SISA BUDGET</th>
+                <th class="py-3 px-4 text-right">MARGIN</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${projectRows.length > 0 ? projectRows : '<tr><td colspan="8" class="py-6 text-center text-slate-400 text-xs font-semibold">Tidak ada proyek aktif</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="bg-[#fcfbf9] border border-stone-200 rounded-2xl p-5 mb-8">
+          <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Rekomendasi Strategis AI</h4>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Berdasarkan margin rata-rata sebesar <strong>${margin}%</strong>, kondisi keuangan proyek dinilai stabil. Disarankan untuk memantau pengeluaran pos logistik pada proyek-proyek dengan sisa budget di bawah 15% untuk mencegah over-budget. Smart Chat dapat digunakan untuk simulasi efisiensi lebih lanjut.
+          </p>
+        </div>
+      `;
+    } else if (id === "cash-flow") {
+      const outflowTotal = cashFlow.reduce((sum: number, f: any) => sum + f.outflow, 0);
+      const inflowTotal = cashFlow.reduce((sum: number, f: any) => sum + f.inflow, 0);
+      const netCash = inflowTotal - outflowTotal;
+
+      const flowRows = cashFlow.map((cf: any) => `
+        <tr class="border-b border-slate-200 text-slate-700 text-xs">
+          <td class="py-3 px-4 font-semibold">${cf.bulan}</td>
+          <td class="py-3 px-4 text-right font-mono text-blue-700">Rp ${cf.inflow.toLocaleString('id-ID')}</td>
+          <td class="py-3 px-4 text-right font-mono text-red-700">Rp ${cf.outflow.toLocaleString('id-ID')}</td>
+          <td class="py-3 px-4 text-right font-mono font-bold ${cf.inflow - cf.outflow >= 0 ? 'text-emerald-800' : 'text-rose-700'}">
+            Rp ${(cf.inflow - cf.outflow).toLocaleString('id-ID')}
+          </td>
+        </tr>
+      `).join('');
+
+      contentHtml = `
+        <div class="mb-8">
+          <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-l-4 border-blue-600 pl-2.5">Arus Kas Ringkasan (YTD)</h3>
+          <div class="grid grid-cols-3 gap-4">
+            <div class="bg-[#edf8f4] border border-[#d1efe4] rounded-xl p-4 text-center">
+              <span class="text-[9px] font-bold text-[#2d6a4f] block uppercase">TOTAL INFLOW (ESTIMASI)</span>
+              <span class="text-lg font-extrabold text-[#2d6a4f] font-mono mt-1 block">Rp ${inflowTotal.toLocaleString('id-ID')}</span>
+            </div>
+            <div class="bg-[#fdf3f3] border border-[#fadaD9] rounded-xl p-4 text-center">
+              <span class="text-[9px] font-bold text-red-500 block uppercase">TOTAL OUTFLOW (REALISASI)</span>
+              <span class="text-lg font-extrabold text-red-700 font-mono mt-1 block">Rp ${outflowTotal.toLocaleString('id-ID')}</span>
+            </div>
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+              <span class="text-[9px] font-bold text-blue-600 block uppercase">NET CASH FLOW</span>
+              <span class="text-lg font-extrabold text-blue-800 font-mono mt-1 block">Rp ${netCash.toLocaleString('id-ID')}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-8">
+          <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-l-4 border-blue-600 pl-2.5">Aliran Kas Bulanan</h3>
+          <table class="w-full text-left border-collapse border border-slate-200">
+            <thead>
+              <tr class="bg-slate-100 border-b border-slate-200 text-slate-500 font-bold text-[10px] tracking-wider uppercase">
+                <th class="py-3 px-4">PERIODE BULAN</th>
+                <th class="py-3 px-4 text-right">CASH INFLOW</th>
+                <th class="py-3 px-4 text-right">CASH OUTFLOW</th>
+                <th class="py-3 px-4 text-right">NET CASH FLOW</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${flowRows.length > 0 ? flowRows : '<tr><td colspan="4" class="py-6 text-center text-slate-400 text-xs font-semibold">Tidak ada data arus kas</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
+    } else if (id === "profitability") {
+      const avgMargin = metrics.avgMargin || 0;
+      const totalPotensi = metrics.remainingBudgets || 0;
+
+      let bestProject = "N/A";
+      let maxMargin = -999;
+      projectList.forEach((p: any) => {
+        if (p.margin > maxMargin) {
+          maxMargin = p.margin;
+          bestProject = p.proyekNama;
+        }
+      });
+
+      const profitRows = projectList.map((p: any) => `
+        <tr class="border-b border-slate-200 text-slate-700 text-xs">
+          <td class="py-3 px-4 font-semibold">${p.proyekNama}</td>
+          <td class="py-3 px-4 text-slate-500 font-mono">${p.kode}</td>
+          <td class="py-3 px-4 text-right font-mono">Rp ${p.rabTotal.toLocaleString('id-ID')}</td>
+          <td class="py-3 px-4 text-right font-mono text-red-700">Rp ${p.realisasi.toLocaleString('id-ID')}</td>
+          <td class="py-3 px-4 text-right font-mono text-emerald-800">Rp ${p.sisaBudget.toLocaleString('id-ID')}</td>
+          <td class="py-3 px-4 text-right font-mono font-bold ${p.margin >= 25 ? 'text-emerald-700' : p.margin >= 10 ? 'text-blue-700' : 'text-amber-600'}">
+            ${p.margin}%
+          </td>
+        </tr>
+      `).join('');
+
+      contentHtml = `
+        <div class="mb-8">
+          <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-l-4 border-emerald-600 pl-2.5">Analisis Profitabilitas Ringkasan</h3>
+          <div class="grid grid-cols-3 gap-4">
+            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
+              <span class="text-[9px] font-bold text-emerald-600 block uppercase">RATA-RATA MARGIN</span>
+              <span class="text-lg font-extrabold text-emerald-800 mt-1 block">${avgMargin}%</span>
+            </div>
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+              <span class="text-[9px] font-bold text-slate-400 block uppercase">PROYEK TERBAIK</span>
+              <span class="text-xs font-bold text-slate-800 mt-2 block truncate">${bestProject} (${maxMargin}%)</span>
+            </div>
+            <div class="bg-[#edf8f4] border border-[#d1efe4] rounded-xl p-4 text-center">
+              <span class="text-[9px] font-bold text-emerald-600 block uppercase">POTENSI MARGIN SISA</span>
+              <span class="text-lg font-extrabold text-emerald-800 font-mono mt-1 block">Rp ${totalPotensi.toLocaleString('id-ID')}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-8">
+          <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-l-4 border-emerald-600 pl-2.5">Margin Keuntungan Proyek</h3>
+          <table class="w-full text-left border-collapse border border-slate-200">
+            <thead>
+              <tr class="bg-slate-100 border-b border-slate-200 text-slate-500 font-bold text-[10px] tracking-wider uppercase">
+                <th class="py-3 px-4">NAMA PROYEK</th>
+                <th class="py-3 px-4">KODE</th>
+                <th class="py-3 px-4 text-right">ANGGARAN RAB</th>
+                <th class="py-3 px-4 text-right">PENGELUARAN</th>
+                <th class="py-3 px-4 text-right">SISA BUDGET</th>
+                <th class="py-3 px-4 text-right">MARGIN BERSIH</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${profitRows.length > 0 ? profitRows : '<tr><td colspan="6" class="py-6 text-center text-slate-400 text-xs font-semibold">Tidak ada data profitabilitas</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
+    } else if (id === "reimbursement-report") {
+      const totalCount = reimbursements.length;
+      const approvedCount = reimbursements.filter(r => r.status === 'APPROVED').length;
+      const approvedNominal = reimbursements.filter(r => r.status === 'APPROVED').reduce((sum, r) => sum + Number(r.nominal), 0);
+      const pendingCount = reimbursements.filter(r => r.status === 'SUBMITTED' || r.status === 'APPROVED_BY_PM').length;
+
+      const reimbRows = reimbursements.map((r: any) => {
+        let displayStatus = r.status;
+        if (r.status === 'SUBMITTED') displayStatus = 'Menunggu PM';
+        else if (r.status === 'APPROVED_BY_PM') displayStatus = 'Verifikasi Keuangan';
+        else if (r.status === 'APPROVED') displayStatus = 'Dicairkan';
+        else if (r.status === 'REJECTED') displayStatus = 'Ditolak';
+
+        return `
+          <tr class="border-b border-slate-200 text-slate-700 text-[11px]">
+            <td class="py-2.5 px-4 font-mono">RB-${r.id}</td>
+            <td class="py-2.5 px-4 font-semibold">${r.user?.nama || 'Karyawan'}</td>
+            <td class="py-2.5 px-4">${r.ocrData?.merchant || 'N/A'}</td>
+            <td class="py-2.5 px-4 text-slate-500">${r.proyek?.nama || 'Umum'}</td>
+            <td class="py-2.5 px-4"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px]">${r.posAnggaran?.namaPos || r.posAnggaran?.deskripsi || 'N/A'}</span></td>
+            <td class="py-2.5 px-4 text-right font-mono font-semibold">Rp ${Number(r.nominal).toLocaleString('id-ID')}</td>
+            <td class="py-2.5 px-4 text-center">
+              <span class="px-2 py-0.5 rounded text-[9px] font-bold ${
+                r.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700' :
+                r.status === 'REJECTED' ? 'bg-red-50 text-red-700' :
+                'bg-amber-50 text-amber-700'
+              }">${displayStatus}</span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      contentHtml = `
+        <div class="mb-8">
+          <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-l-4 border-amber-600 pl-2.5">Ringkasan Operasional Reimbursement</h3>
+          <div class="grid grid-cols-4 gap-4">
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+              <span class="text-[9px] font-bold text-slate-400 block uppercase">TOTAL PENGAJUAN</span>
+              <span class="text-lg font-extrabold text-slate-800 mt-1 block">${totalCount} Pengajuan</span>
+            </div>
+            <div class="bg-[#edf8f4] border border-[#d1efe4] rounded-xl p-4 text-center">
+              <span class="text-[9px] font-bold text-emerald-600 block uppercase">NOMINAL DICAIRKAN</span>
+              <span class="text-lg font-extrabold text-emerald-800 font-mono mt-1 block">Rp ${approvedNominal.toLocaleString('id-ID')}</span>
+            </div>
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+              <span class="text-[9px] font-bold text-blue-600 block uppercase">DICAIRKAN (COUNT)</span>
+              <span class="text-lg font-extrabold text-blue-800 mt-1 block">${approvedCount} Transaksi</span>
+            </div>
+            <div class="bg-[#fdf3e6] border border-[#fcefd9] rounded-xl p-4 text-center">
+              <span class="text-[9px] font-bold text-amber-600 block uppercase">MENUNGGU VERIFIKASI</span>
+              <span class="text-lg font-extrabold text-amber-800 mt-1 block">${pendingCount} Antrian</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-8 page-break">
+          <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-l-4 border-amber-600 pl-2.5">Riwayat Pengajuan Reimbursement</h3>
+          <table class="w-full text-left border-collapse border border-slate-200">
+            <thead>
+              <tr class="bg-slate-100 border-b border-slate-200 text-slate-500 font-bold text-[10px] tracking-wider uppercase">
+                <th class="py-3 px-4">ID</th>
+                <th class="py-3 px-4">PENGAJU</th>
+                <th class="py-3 px-4">MERCHANT</th>
+                <th class="py-3 px-4">PROYEK</th>
+                <th class="py-3 px-4">POS ANGGARAN</th>
+                <th class="py-3 px-4 text-right">NOMINAL</th>
+                <th class="py-3 px-4 text-center">STATUS</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reimbRows.length > 0 ? reimbRows : '<tr><td colspan="7" class="py-6 text-center text-slate-400 text-xs font-semibold">Tidak ada pengajuan</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="id">
+      <head>
+        <meta charset="UTF-8">
+        <title>Laporan - ${reportTitle}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+        <style>
+          body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #ffffff;
+          }
+          @media print {
+            body {
+              background-color: #ffffff;
+            }
+            .no-print {
+              display: none;
+            }
+            @page {
+              margin: 1.5cm;
+            }
+          }
+        </style>
+      </head>
+      <body class="p-6 md:p-12 max-w-5xl mx-auto">
+        <!-- Floating Print Action for preview mode -->
+        <div class="no-print mb-8 flex justify-between items-center bg-slate-50 border border-slate-200 rounded-2xl p-4">
+          <div class="space-y-0.5">
+            <h4 class="font-bold text-slate-800 text-sm">Pratinjau Laporan Keuangan</h4>
+            <p class="text-xs text-slate-500">Gunakan dialog cetak browser untuk menyimpannya sebagai file PDF.</p>
+          </div>
+          <button 
+            onclick="window.print()" 
+            class="px-5 py-2.5 bg-[#2d6a4f] hover:bg-[#1e5038] text-white text-xs font-bold rounded-xl transition shadow-md cursor-pointer"
+          >
+            Cetak / Simpan PDF
+          </button>
+        </div>
+
+        <!-- Document Header -->
+        <div class="flex justify-between items-start border-b-2 border-slate-800 pb-6 mb-8">
+          <div>
+            <h1 class="text-2xl font-extrabold text-[#2d6a4f] tracking-tight">DIGI MONEY MANAGER</h1>
+            <p class="text-xs text-slate-500 font-semibold tracking-wide uppercase mt-1">Platform Manajemen Finansial Proyek</p>
+          </div>
+          <div class="text-right">
+            <h2 class="text-lg font-bold text-slate-800 uppercase tracking-wide">${reportTitle}</h2>
+            <p class="text-xs text-slate-400 mt-1 font-mono">${nowStr}</p>
+          </div>
+        </div>
+
+        <!-- Meta Info -->
+        <div class="grid grid-cols-2 gap-6 bg-[#F9F8F4] border border-[#EBE9E1] rounded-2xl p-6 mb-8">
+          <div class="space-y-2">
+            <div>
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">DIPERSIAPKAN UNTUK</span>
+              <span class="text-base font-bold text-slate-800">Direksi & Manajemen Internal</span>
+            </div>
+            <div>
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">JENIS LAPORAN</span>
+              <span class="text-xs font-mono font-bold text-slate-500">${reportTitle}</span>
+            </div>
+          </div>
+          <div class="space-y-2">
+            <div>
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">STATUS DATA</span>
+              <span class="text-sm font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">Real-time Terverifikasi</span>
+            </div>
+            <div>
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">WAKTU GENERASI</span>
+              <span class="text-xs font-semibold text-slate-600">${nowStr}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom Content -->
+        ${contentHtml}
+
+        <!-- Footer / Signature -->
+        <div class="mt-16 pt-12 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
+          <div>
+            <p>© ${new Date().getFullYear()} Digi Money Manager. Semua Hak Cipta Dilindungi.</p>
+          </div>
+          <div class="text-right">
+            <p>Digenerate oleh Sistem,</p>
+            <div class="h-12"></div>
+            <p class="font-bold text-slate-700">Manajemen Eksekutif</p>
+            <p>Direktur Utama</p>
+          </div>
+        </div>
+
+        <!-- Auto trigger print dialog -->
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
+  const handleDownloadExcel = (id: string) => {
     const report = REPORTS.find((r) => r.id === id);
     const now = new Date().toLocaleDateString("id-ID");
-    const ext = format === "PDF" ? "pdf" : "xlsx";
-    const content =
-      format === "PDF"
-        ? `%PDF-1.4\n% Digi Money Manager - ${report?.title}\n% ${now}`
-        : `Digi Money Manager,${report?.title},${now}`;
-    const mime =
-      format === "PDF"
-        ? "application/pdf"
-        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-    const blob = new Blob([content], { type: mime });
+    const content = `Digi Money Manager,${report?.title},${now}`;
+    const blob = new Blob([content], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${id}-${Date.now()}.${ext}`;
+    a.download = `${id}-${Date.now()}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -111,76 +519,83 @@ export default function LaporanPage() {
         </p>
       </div>
 
-      {/* Report Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        {REPORTS.map((report) => {
-          const isGenerating = generating === report.id;
-          const isDone = generated.has(report.id);
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-24 gap-3">
+          <Loader2 className="animate-spin text-[#2d6a4f]" size={32} />
+          <p className="text-stone-500 text-[14px]">Memuat data laporan...</p>
+        </div>
+      ) : (
+        /* Report Cards Grid */
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {REPORTS.map((report) => {
+            const isGenerating = generating === report.id;
+            const isDone = generated.has(report.id);
 
-          return (
-            <div
-              key={report.id}
-              className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm flex flex-col gap-5 hover:shadow-md transition-shadow"
-            >
-              {/* Card Header */}
-              <div className="flex items-start gap-4">
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${report.iconBg}`}>
-                  {report.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-[14px] font-bold text-stone-900 leading-tight">{report.title}</h4>
-                  <p className="text-[12px] text-stone-500 mt-1">{report.desc}</p>
-                </div>
-                {isDone && (
-                  <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-2">
-                {/* Download PDF */}
-                <button
-                  onClick={() => handleDownload(report.id, "PDF")}
-                  className="flex items-center gap-1.5 px-3 py-2 border border-stone-200 rounded-lg text-[12px] font-semibold text-stone-600 hover:bg-stone-50 transition cursor-pointer"
-                >
-                  <Download size={13} />
-                  PDF
-                </button>
-
-                {/* Download Excel */}
-                <button
-                  onClick={() => handleDownload(report.id, "Excel")}
-                  className="flex items-center gap-1.5 px-3 py-2 border border-stone-200 rounded-lg text-[12px] font-semibold text-stone-600 hover:bg-stone-50 transition cursor-pointer"
-                >
-                  <Download size={13} />
-                  Excel
-                </button>
-
-                {/* Generate Button */}
-                <button
-                  onClick={() => handleGenerate(report.id)}
-                  disabled={!!generating}
-                  className="ml-auto flex items-center gap-2 px-4 py-2 bg-[#2d6a4f] hover:bg-[#1e5038] disabled:opacity-60 text-white text-[12px] font-bold rounded-lg transition cursor-pointer"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 size={13} className="animate-spin" />
-                      Generating...
-                    </>
-                  ) : isDone ? (
-                    <>
-                      <CheckCircle2 size={13} />
-                      Generated ✓
-                    </>
-                  ) : (
-                    "Generate →"
+            return (
+              <div
+                key={report.id}
+                className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm flex flex-col gap-5 hover:shadow-md transition-shadow"
+              >
+                {/* Card Header */}
+                <div className="flex items-start gap-4">
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${report.iconBg}`}>
+                    {report.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-[14px] font-bold text-stone-900 leading-tight">{report.title}</h4>
+                    <p className="text-[12px] text-stone-500 mt-1">{report.desc}</p>
+                  </div>
+                  {isDone && (
+                    <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
                   )}
-                </button>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2">
+                  {/* Download PDF */}
+                  <button
+                    onClick={() => handleDownloadPDF(report.id)}
+                    className="flex items-center gap-1.5 px-3 py-2 border border-stone-200 rounded-lg text-[12px] font-semibold text-stone-600 hover:bg-stone-50 transition cursor-pointer"
+                  >
+                    <Download size={13} />
+                    PDF
+                  </button>
+
+                  {/* Download Excel */}
+                  <button
+                    onClick={() => handleDownloadExcel(report.id)}
+                    className="flex items-center gap-1.5 px-3 py-2 border border-stone-200 rounded-lg text-[12px] font-semibold text-stone-600 hover:bg-stone-50 transition cursor-pointer"
+                  >
+                    <Download size={13} />
+                    Excel
+                  </button>
+
+                  {/* Generate Button */}
+                  <button
+                    onClick={() => handleGenerate(report.id)}
+                    disabled={!!generating}
+                    className="ml-auto flex items-center gap-2 px-4 py-2 bg-[#2d6a4f] hover:bg-[#1e5038] disabled:opacity-60 text-white text-[12px] font-bold rounded-lg transition cursor-pointer"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" />
+                        Generating...
+                      </>
+                    ) : isDone ? (
+                      <>
+                        <CheckCircle2 size={13} />
+                        Generated ✓
+                      </>
+                    ) : (
+                      "Generate →"
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Info Note */}
       <div className="bg-stone-50 border border-stone-200 rounded-2xl p-5 text-[13px] text-stone-500">

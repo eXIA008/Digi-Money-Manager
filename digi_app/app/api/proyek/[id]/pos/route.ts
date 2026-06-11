@@ -7,8 +7,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const role = req.headers.get('x-user-role');
     const userId = req.headers.get('x-user-id');
 
-    if (role !== 'Project Manager' && role !== 'Tim Keuangan') {
-      return NextResponse.json({ message: 'Forbidden: Only Project Manager or Tim Keuangan can modify project budget' }, { status: 403 });
+    if (role !== 'Project Manager' && role !== 'Tim Keuangan' && role !== 'Direktur / Manajemen') {
+      return NextResponse.json({ message: 'Forbidden: Only Project Manager, Tim Keuangan, or Direktur / Manajemen can modify project budget' }, { status: 403 });
     }
 
     const { id: proyekIdStr } = await params;

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { UserPlus, Loader2, Check, X, Search, ChevronDown, Users } from "lucide-react";
+import { UserPlus, Loader2, Check, X, Search, ChevronDown, Users, Edit2, Briefcase } from "lucide-react";
 
 type Proyek = { id: number; nama: string; status: string };
 type Member = {
@@ -41,11 +41,13 @@ export default function AnggotaPage() {
   const [proyekList, setProyekList] = useState<Proyek[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState("");
   const [formError, setFormError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("Semua");
+  const [selectedProyekIds, setSelectedProyekIds] = useState<number[]>([]);
 
   const [form, setForm] = useState({
     nama: "",
@@ -53,7 +55,6 @@ export default function AnggotaPage() {
     password: "",
     userRole: "Karyawan",
     divisi: "",
-    proyekId: "",
   });
 
   const fetchData = async () => {
@@ -75,6 +76,30 @@ export default function AnggotaPage() {
 
   useEffect(() => { fetchData(); }, []);
 
+  const handleStartAdd = () => {
+    setEditingMember(null);
+    setForm({ nama: "", email: "", password: "", userRole: "Karyawan", divisi: "" });
+    setSelectedProyekIds([]);
+    setShowForm(true);
+    setFormError("");
+    setSuccess("");
+  };
+
+  const handleStartEdit = (m: Member) => {
+    setEditingMember(m);
+    setForm({
+      nama: m.nama,
+      email: m.email,
+      password: "", // Not required for edit
+      userRole: m.role,
+      divisi: m.divisi || "",
+    });
+    setSelectedProyekIds(m.proyek.map((p) => p.id));
+    setShowForm(true);
+    setFormError("");
+    setSuccess("");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
@@ -82,24 +107,43 @@ export default function AnggotaPage() {
     setSubmitting(true);
 
     try {
-      const res = await fetch("/api/manager/members", {
-        method: "POST",
+      const url = "/api/manager/members";
+      const method = editingMember ? "PUT" : "POST";
+      const payload = editingMember
+        ? {
+            userId: editingMember.id,
+            nama: form.nama,
+            email: form.email,
+            userRole: form.userRole,
+            divisi: form.divisi,
+            proyekIds: selectedProyekIds,
+          }
+        : {
+            nama: form.nama,
+            email: form.email,
+            password: form.password,
+            userRole: form.userRole,
+            divisi: form.divisi,
+            proyekIds: selectedProyekIds,
+          };
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          proyekId: form.proyekId || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        setFormError(data.message || "Gagal mendaftarkan anggota");
+        setFormError(data.message || `Gagal ${editingMember ? "memperbarui" : "mendaftarkan"} anggota`);
         return;
       }
 
-      setSuccess(`Anggota "${form.nama}" berhasil didaftarkan!`);
-      setForm({ nama: "", email: "", password: "", userRole: "Karyawan", divisi: "", proyekId: "" });
+      setSuccess(`Data anggota "${form.nama}" berhasil ${editingMember ? "diperbarui" : "didaftarkan"}!`);
+      setForm({ nama: "", email: "", password: "", userRole: "Karyawan", divisi: "" });
+      setSelectedProyekIds([]);
       setShowForm(false);
+      setEditingMember(null);
       fetchData();
     } catch {
       setFormError("Terjadi kesalahan koneksi");
@@ -123,11 +167,11 @@ export default function AnggotaPage() {
         <div>
           <h1 className="text-2xl font-bold text-stone-900 leading-tight">Registrasi Anggota</h1>
           <p className="text-sm text-stone-500 mt-1">
-            Kelola akun tim. Daftarkan karyawan, Project Manager, dan Tim Keuangan ke sistem.
+            Kelola akun tim. Daftarkan karyawan, Project Manager, dan Tim Keuangan ke sistem, serta atur penugasan proyek mereka.
           </p>
         </div>
         <button
-          onClick={() => { setShowForm(!showForm); setFormError(""); setSuccess(""); }}
+          onClick={handleStartAdd}
           className="flex items-center gap-2 px-4 py-2.5 bg-[#2d6a4f] hover:bg-[#1e5038] text-white text-[13px] font-bold rounded-xl shadow-sm transition cursor-pointer whitespace-nowrap"
         >
           <UserPlus size={16} />
@@ -137,19 +181,21 @@ export default function AnggotaPage() {
 
       {/* Success Banner */}
       {success && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2">
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2 animate-fade-in">
           <Check size={16} />
           {success}
         </div>
       )}
 
-      {/* Registration Form */}
+      {/* Registration / Edit Form */}
       {showForm && (
-        <div className="bg-white border border-stone-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-stone-100 flex items-center justify-between">
-            <h3 className="font-bold text-[15px] text-stone-900">Daftarkan Anggota Baru</h3>
+        <div className="bg-white border border-stone-200 rounded-2xl shadow-sm overflow-hidden animate-slide-down">
+          <div className="px-6 py-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/50">
+            <h3 className="font-bold text-[15px] text-stone-900">
+              {editingMember ? `Edit Anggota: ${editingMember.nama}` : "Daftarkan Anggota Baru"}
+            </h3>
             <button
-              onClick={() => setShowForm(false)}
+              onClick={() => { setShowForm(false); setEditingMember(null); }}
               className="p-1.5 text-stone-400 hover:text-stone-700 rounded-lg hover:bg-stone-100 transition cursor-pointer"
             >
               <X size={16} />
@@ -169,7 +215,7 @@ export default function AnggotaPage() {
                   value={form.nama}
                   onChange={(e) => setForm({ ...form, nama: e.target.value })}
                   placeholder="Budi Santoso"
-                  className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-[13px] text-stone-800 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-[#2d6a4f]/30 focus:border-[#2d6a4f] transition"
+                  className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-[13px] text-stone-800 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-[#2d6a4f]/30 focus:border-[#2d6a4f] transition bg-white"
                 />
               </div>
 
@@ -184,25 +230,27 @@ export default function AnggotaPage() {
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   placeholder="budi@perusahaan.com"
-                  className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-[13px] text-stone-800 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-[#2d6a4f]/30 focus:border-[#2d6a4f] transition"
+                  className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-[13px] text-stone-800 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-[#2d6a4f]/30 focus:border-[#2d6a4f] transition bg-white"
                 />
               </div>
 
-              {/* Password */}
-              <div>
-                <label className="block text-[12px] font-bold text-stone-600 mb-1.5">
-                  Password <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  placeholder="Min. 8 karakter"
-                  minLength={8}
-                  className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-[13px] text-stone-800 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-[#2d6a4f]/30 focus:border-[#2d6a4f] transition"
-                />
-              </div>
+              {/* Password - Only show when registering new member */}
+              {!editingMember && (
+                <div>
+                  <label className="block text-[12px] font-bold text-stone-600 mb-1.5">
+                    Password <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder="Min. 8 karakter"
+                    minLength={8}
+                    className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-[13px] text-stone-800 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-[#2d6a4f]/30 focus:border-[#2d6a4f] transition bg-white"
+                  />
+                </div>
+              )}
 
               {/* Role */}
               <div>
@@ -232,25 +280,49 @@ export default function AnggotaPage() {
                   value={form.divisi}
                   onChange={(e) => setForm({ ...form, divisi: e.target.value })}
                   placeholder="Contoh: Operasional Lapangan"
-                  className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-[13px] text-stone-800 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-[#2d6a4f]/30 focus:border-[#2d6a4f] transition"
+                  className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-[13px] text-stone-800 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-[#2d6a4f]/30 focus:border-[#2d6a4f] transition bg-white"
                 />
               </div>
 
-              {/* Proyek */}
-              <div>
-                <label className="block text-[12px] font-bold text-stone-600 mb-1.5">Assign ke Proyek (opsional)</label>
-                <div className="relative">
-                  <select
-                    value={form.proyekId}
-                    onChange={(e) => setForm({ ...form, proyekId: e.target.value })}
-                    className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-[13px] text-stone-800 appearance-none focus:outline-none focus:ring-2 focus:ring-[#2d6a4f]/30 focus:border-[#2d6a4f] transition bg-white pr-10"
-                  >
-                    <option value="">— Tidak assign ke proyek —</option>
-                    {proyekList.map((p) => (
-                      <option key={p.id} value={p.id}>{p.nama} ({p.status})</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+              {/* Proyek Checkboxes Multi-select */}
+              <div className="sm:col-span-2">
+                <label className="block text-[12px] font-bold text-stone-600 mb-2">
+                  Assign ke Proyek (Dapat memilih banyak proyek)
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 bg-stone-50/50 border border-stone-200/60 rounded-xl p-4 max-h-[160px] overflow-y-auto">
+                  {proyekList.map((p) => {
+                    const isChecked = selectedProyekIds.includes(p.id);
+                    return (
+                      <label 
+                        key={p.id} 
+                        className={`flex items-start gap-2.5 p-2 rounded-lg border transition cursor-pointer select-none text-[12px] ${
+                          isChecked 
+                            ? "bg-emerald-50/60 border-emerald-200 text-emerald-800" 
+                            : "bg-white border-stone-200 text-stone-600 hover:bg-stone-50"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedProyekIds([...selectedProyekIds, p.id]);
+                            } else {
+                              setSelectedProyekIds(selectedProyekIds.filter((id) => id !== p.id));
+                            }
+                          }}
+                          className="mt-0.5 accent-[#2d6a4f]"
+                        />
+                        <div className="min-w-0">
+                          <p className="font-bold truncate leading-tight">{p.nama}</p>
+                          <span className={`text-[10px] ${isChecked ? "text-emerald-600" : "text-stone-400"}`}>{p.status}</span>
+                        </div>
+                      </label>
+                    );
+                  })}
+                  {proyekList.length === 0 && (
+                    <span className="text-[12px] text-stone-400 italic">Belum ada proyek terdaftar.</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -262,10 +334,10 @@ export default function AnggotaPage() {
               </div>
             )}
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3 mt-6 border-t border-stone-105 pt-4">
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
+                onClick={() => { setShowForm(false); setEditingMember(null); }}
                 className="px-5 py-2.5 border border-stone-200 rounded-xl text-[13px] font-semibold text-stone-600 hover:bg-stone-50 transition cursor-pointer"
               >
                 Batal
@@ -273,17 +345,17 @@ export default function AnggotaPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#2d6a4f] hover:bg-[#1e5038] disabled:opacity-60 text-white text-[13px] font-bold rounded-xl transition cursor-pointer"
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#2d6a4f] hover:bg-[#1e5038] disabled:opacity-60 text-white text-[13px] font-bold rounded-xl transition cursor-pointer shadow-sm"
               >
                 {submitting ? (
                   <>
                     <Loader2 size={14} className="animate-spin" />
-                    Mendaftarkan...
+                    {editingMember ? "Menyimpan..." : "Mendaftarkan..."}
                   </>
                 ) : (
                   <>
-                    <UserPlus size={14} />
-                    Daftarkan Anggota
+                    {editingMember ? <Edit2 size={14} /> : <UserPlus size={14} />}
+                    {editingMember ? "Simpan Perubahan" : "Daftarkan Anggota"}
                   </>
                 )}
               </button>
@@ -295,7 +367,7 @@ export default function AnggotaPage() {
       {/* Members List */}
       <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
         {/* Toolbar */}
-        <div className="p-5 border-b border-stone-100 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="p-5 border-b border-stone-100 flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-stone-50/20">
           <div className="flex items-center gap-2 bg-stone-100 rounded-xl px-3 py-2 flex-1">
             <Search size={14} className="text-stone-400 shrink-0" />
             <input
@@ -307,21 +379,23 @@ export default function AnggotaPage() {
             />
           </div>
 
-          <div className="relative">
-            <select
-              value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
-              className="border border-stone-200 rounded-xl px-3 py-2 text-[12px] font-semibold text-stone-600 appearance-none pr-7 focus:outline-none bg-white cursor-pointer"
-            >
-              <option>Semua</option>
-              {ROLES.map((r) => <option key={r}>{r}</option>)}
-            </select>
-            <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
-          </div>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="border border-stone-200 rounded-xl px-3 py-2 text-[12px] font-semibold text-stone-600 appearance-none pr-7 focus:outline-none bg-white cursor-pointer"
+              >
+                <option>Semua</option>
+                {ROLES.map((r) => <option key={r}>{r}</option>)}
+              </select>
+              <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+            </div>
 
-          <div className="flex items-center gap-1.5 text-[12px] text-stone-400">
-            <Users size={14} />
-            <span>{filteredMembers.length} anggota</span>
+            <div className="flex items-center gap-1.5 text-[12px] text-stone-455 font-medium whitespace-nowrap bg-stone-100 px-3 py-2 rounded-xl">
+              <Users size={14} className="text-stone-500" />
+              <span className="text-stone-700">{filteredMembers.length} anggota</span>
+            </div>
           </div>
         </div>
 
@@ -341,16 +415,17 @@ export default function AnggotaPage() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="text-[11px] text-stone-400 font-semibold uppercase tracking-wide border-b border-stone-100">
+                <tr className="text-[11px] text-stone-400 font-bold uppercase tracking-wide border-b border-stone-150 bg-stone-50/50">
                   <th className="text-left px-5 py-3">Anggota</th>
                   <th className="text-left px-4 py-3">Role</th>
                   <th className="text-left px-4 py-3">Divisi</th>
-                  <th className="text-left px-4 py-3">Proyek</th>
+                  <th className="text-left px-4 py-3">Proyek ({proyekList.length} total)</th>
+                  <th className="text-right px-5 py-3">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-50">
+              <tbody className="divide-y divide-stone-100">
                 {filteredMembers.map((m, i) => (
-                  <tr key={m.id} className="hover:bg-stone-50/60 transition-colors">
+                  <tr key={m.id} className="hover:bg-stone-50/40 transition-colors">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0 ${AVATAR_COLORS[i % AVATAR_COLORS.length]}`}>
@@ -358,7 +433,7 @@ export default function AnggotaPage() {
                         </div>
                         <div>
                           <p className="text-[13px] font-bold text-stone-900 leading-tight">{m.nama}</p>
-                          <p className="text-[11px] text-stone-400">{m.email}</p>
+                          <p className="text-[11px] text-stone-400 font-mono">{m.email}</p>
                         </div>
                       </div>
                     </td>
@@ -370,19 +445,29 @@ export default function AnggotaPage() {
                     <td className="px-4 py-3.5 text-[12px] text-stone-500">{m.divisi || "—"}</td>
                     <td className="px-4 py-3.5">
                       {m.proyek.length === 0 ? (
-                        <span className="text-[12px] text-stone-300">Tidak ada proyek</span>
+                        <span className="text-[11px] text-stone-300 font-semibold italic">Tidak ada proyek</span>
                       ) : (
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap gap-1.5 max-w-[450px]">
                           {m.proyek.map((p) => (
-                            <span
+                            <div
                               key={p.id}
-                              className="text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md font-medium"
+                              className="inline-flex items-center gap-1 text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-md font-semibold font-sans"
                             >
-                              {p.nama}
-                            </span>
+                              <Briefcase size={10} className="text-emerald-600" />
+                              <span>{p.nama}</span>
+                            </div>
                           ))}
                         </div>
                       )}
+                    </td>
+                    <td className="px-5 py-3.5 text-right">
+                      <button
+                        onClick={() => handleStartEdit(m)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 hover:bg-[#e8f4ef] hover:text-[#2d6a4f] text-stone-600 text-[11px] font-bold rounded-lg transition cursor-pointer"
+                      >
+                        <Edit2 size={11} />
+                        Atur Proyek & Info
+                      </button>
                     </td>
                   </tr>
                 ))}

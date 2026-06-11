@@ -1,10 +1,25 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// GET: Fetch all projects with budget information
+// GET: Fetch all projects with budget information (filtered by user assignment for Karyawan and Project Manager)
 export async function GET(req: NextRequest) {
   try {
+    const role = req.headers.get('x-user-role');
+    const userId = req.headers.get('x-user-id');
+
+    let filter: any = {};
+    if (userId && (role === 'Karyawan' || role === 'Project Manager')) {
+      filter = {
+        users: {
+          some: {
+            userId: parseInt(userId, 10),
+          },
+        },
+      };
+    }
+
     const projects = await prisma.proyek.findMany({
+      where: filter,
       include: {
         budget: {
           include: {
@@ -27,8 +42,8 @@ export async function POST(req: NextRequest) {
     const role = req.headers.get('x-user-role');
     const userId = req.headers.get('x-user-id');
 
-    if (role !== 'Project Manager' && role !== 'Tim Keuangan') {
-      return NextResponse.json({ message: 'Forbidden: Only Project Manager or Tim Keuangan can create projects' }, { status: 403 });
+    if (role !== 'Project Manager' && role !== 'Tim Keuangan' && role !== 'Direktur / Manajemen') {
+      return NextResponse.json({ message: 'Forbidden: Unauthorized to create projects' }, { status: 403 });
     }
 
     const body = await req.json();

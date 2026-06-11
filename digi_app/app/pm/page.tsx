@@ -132,12 +132,15 @@ export default function PMDashboardPage() {
     fetchDashboardData();
   }, [selectedProjectId]);
 
-  // Fetch daftar semua proyek untuk dropdown
+  // Fetch daftar semua proyek untuk dropdown dan pilih yang pertama secara default
   useEffect(() => {
     fetch("/api/proyek")
       .then((res) => res.json())
       .then((d) => {
-        if (d.projects) setAllProjects(d.projects);
+        if (d.projects && d.projects.length > 0) {
+          setAllProjects(d.projects);
+          setSelectedProjectId(d.projects[0].id);
+        }
       })
       .catch(() => {});
   }, []);

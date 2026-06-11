@@ -174,9 +174,9 @@ export async function middleware(req: NextRequest) {
     );
   }
 
-  if (pathname.startsWith('/api/proyek/') && (pathname.endsWith('/budget') || pathname.endsWith('/pos')) && role !== 'Project Manager' && role !== 'Tim Keuangan') {
+  if (pathname.startsWith('/api/proyek/') && (pathname.endsWith('/budget') || pathname.endsWith('/pos')) && role !== 'Project Manager' && role !== 'Tim Keuangan' && role !== 'Direktur / Manajemen') {
     return new NextResponse(
-      JSON.stringify({ message: 'Forbidden: Only Project Manager or Tim Keuangan can modify budget' }),
+      JSON.stringify({ message: 'Forbidden: Only Project Manager, Tim Keuangan, or Direktur / Manajemen can modify budget' }),
       { status: 403, headers: { 'Content-Type': 'application/json' } }
     );
   }
