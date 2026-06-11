@@ -18,6 +18,8 @@ export default function AjukanReimbursement() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentState, setCurrentState] = useState<'upload' | 'ocr' | 'review' | 'success'>('upload');
   
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+
   // Backend dynamic projects and categories
   const [projects, setProjects] = useState<any[]>([]);
   const [proyekId, setProyekId] = useState('');
@@ -221,7 +223,7 @@ export default function AjukanReimbursement() {
                   {currentState === 'upload' || currentState === 'ocr' ? '2' : <Check size={16} className="stroke-3" />}
                 </div>
                 <div>
-                  <h4 className={`font-bold leading-tight ${currentState === 'upload' ? 'text-stone-400' : 'text-stone-800'}`}>AI OCR</h4>
+                  <h4 className={`font-bold leading-tight ${currentState === 'upload' ? 'text-stone-400' : 'text-stone-800'}`}>Scan</h4>
                   <p className="text-[10px] text-stone-400 font-medium">Otomatis baca data</p>
                 </div>
               </div>
@@ -317,7 +319,7 @@ export default function AjukanReimbursement() {
               {/* Sisi Kanan Logika Loading Stepper Progress */}
               <div className="md:col-span-8 space-y-5">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#DDF2E8] text-[#198754] text-[10px] font-bold rounded-md">
-                  <RefreshCw size={11} className="animate-spin" /> AI OCR sedang memproses
+                  <RefreshCw size={11} className="animate-spin" /> Model sedang memproses
                 </div>
                 
                 <div className="space-y-1">
@@ -491,19 +493,30 @@ export default function AjukanReimbursement() {
               </div>
 
               {/* Tampilan Ringkasan Bukti Struk Sisi Kanan */}
-              <div className="bg-white border border-stone-200 rounded-2xl p-4 shadow-sm lg:col-span-4 space-y-3">
-                <div>
-                  <h3 className="font-extrabold text-sm text-stone-900">Bukti Struk</h3>
-                  <p className="text-[10px] text-stone-400 font-medium">Hasil scan.</p>
-                </div>
-                <div className="w-full rounded-xl overflow-hidden bg-stone-50 border border-stone-200 aspect-3/4 relative flex items-center justify-center shadow-inner">
-                  <img 
-                    src={filePreview} 
-                    alt="Bukti Struk" 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
+{/* Tampilan Ringkasan Bukti Struk Sisi Kanan */}
+<div className="bg-white border border-stone-200 rounded-2xl p-4 shadow-sm lg:col-span-4 space-y-3">
+  <div>
+    <h3 className="font-extrabold text-sm text-stone-900">Bukti Struk</h3>
+    <p className="text-[10px] text-stone-400 font-medium">Hasil scan. Klik gambar untuk memperbesar.</p>
+  </div>
+  {/* KODE DIUBAH: Ditambahkan fitur klik, hover, dan pointer zoom */}
+  <div 
+    onClick={() => setIsPreviewModalOpen(true)}
+    className="w-full rounded-xl overflow-hidden bg-stone-50 border border-stone-200 aspect-3/4 relative flex items-center justify-center shadow-inner cursor-zoom-in hover:opacity-95 transition-all group"
+  >
+    <img 
+      src={filePreview} 
+      alt="Bukti Struk" 
+      className="w-full h-full object-cover"
+    />
+    {/* Overlay efek hover transparan */}
+    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 flex items-center justify-center transition-all">
+      <span className="bg-stone-900/80 text-white text-[10px] px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-all font-medium">
+        Perbesar Gambar
+      </span>
+    </div>
+  </div>
+</div>
             </div>
           )}
 
@@ -534,6 +547,33 @@ export default function AjukanReimbursement() {
 
         </main>
       </div>
+      {isPreviewModalOpen && (
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-zoom-out animate-fade-in"
+          onClick={() => setIsPreviewModalOpen(false)}
+        >
+          <div 
+            className="relative max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl bg-white p-1.5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()} // Mencegah modal tertutup jika area gambar yang di-klik
+          >
+            <img 
+              src={filePreview} 
+              alt="Bukti Struk Full Preview" 
+              className="max-w-full max-h-[82vh] object-contain rounded-xl"
+            />
+            <div className="flex justify-between items-center px-2 py-2 bg-stone-50 rounded-b-xl border-t border-stone-100">
+              <span className="text-[11px] font-semibold text-stone-500">Pratinjau Dokumen Bukti</span>
+              <button 
+                type="button"
+                className="px-3 py-1 bg-stone-900 hover:bg-stone-800 text-white text-[11px] font-bold rounded-lg transition"
+                onClick={() => setIsPreviewModalOpen(false)}
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
