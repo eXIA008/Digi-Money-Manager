@@ -49,7 +49,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const nominal = Number(reimbursement.nominal);
 
     // 2. Handle Project Manager (PM) level approval
-    if (role === 'Project Manager') {
+    const isPM = await prisma.userProyek.findFirst({
+      where: {
+        userId: parseInt(userId, 10),
+        proyekId: reimbursement.proyekId,
+        role: 'Project Manager',
+      },
+    });
+
+    if (isPM) {
       if (reimbursement.status !== 'SUBMITTED') {
         return NextResponse.json({ message: 'Reimbursement is not pending PM approval' }, { status: 400 });
       }
@@ -229,10 +237,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
               // 1. Notify PM of the project
               const pmUsers = await tx.user.findMany({
                 where: {
-                  role: 'Project Manager',
                   proyek: {
                     some: {
                       proyekId: reimbursement.proyekId,
+                      role: 'Project Manager',
                     },
                   },
                 },

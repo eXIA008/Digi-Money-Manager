@@ -16,7 +16,10 @@ type UserProfile = {
   nama: string;
   email: string;
   role: string;
+  roles?: string[];
   divisi?: string | null;
+  proyek?: { id: number; nama: string; status: string } | null;
+  assignments?: Array<{ proyekId: number; nama: string; role: string }>;
 };
 
 type NotificationItem = {
@@ -195,7 +198,8 @@ export default function Header({ onOpenSidebar, userRole = "Karyawan", hideNotif
     }
   };
 
-  const avatarStyles = ROLE_AVATAR_STYLES[userRole];
+  const activeRole = (profile?.role || userRole) as UserRole;
+  const avatarStyles = ROLE_AVATAR_STYLES[activeRole] || ROLE_AVATAR_STYLES["Karyawan"];
 
   return (
     <header className={`h-16 lg:h-20 flex items-center justify-between px-4 lg:px-8 border-b border-stone-200 bg-[#f9f8f4] shrink-0 sticky top-0 z-30 w-full`}>
@@ -376,15 +380,15 @@ export default function Header({ onOpenSidebar, userRole = "Karyawan", hideNotif
               <span className="text-[12px] font-bold text-stone-800 leading-tight">
                 {profile?.nama || ""}
               </span>
-              <span className="text-[10px] text-stone-500">
-                {profile?.role || userRole}
+              <span className="text-[10px] text-stone-500 max-w-[150px] truncate">
+                {profile?.proyek ? `${activeRole} · ${profile.proyek.nama}` : activeRole}
               </span>
             </div>
           </div>
 
           {/* Profile Dropdown */}
           {isProfileOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white border border-stone-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="absolute right-0 mt-2 w-56 bg-white border border-stone-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="px-4 py-2 border-b border-stone-100 flex flex-col mb-1 select-none">
                 <span className="text-[11px] font-bold text-stone-800 truncate">
                   {profile?.nama || ""}
@@ -393,6 +397,50 @@ export default function Header({ onOpenSidebar, userRole = "Karyawan", hideNotif
                   {profile?.email || ""}
                 </span>
               </div>
+
+              {/* Switch Project Option for members */}
+              {profile?.assignments && profile.assignments.length > 0 && (
+                <div className="border-b border-stone-100 py-1 mb-1">
+                  <div className="px-4 py-1 text-[9px] font-bold text-stone-400 uppercase tracking-wider">
+                    Proyek Aktif
+                  </div>
+                  <div className="px-4 py-1 text-[11px] text-stone-700 font-bold truncate max-w-[180px]">
+                    📂 {profile.proyek?.nama || 'Belum memilih'}
+                  </div>
+                  <Link
+                    href="/select-project"
+                    className="w-full px-4 py-2 mt-1.5 text-left text-xs font-bold text-[#008f5d] hover:bg-emerald-50 flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    🔄 Ganti Proyek
+                  </Link>
+                </div>
+              )}
+
+              {/* Dashboard Switcher for non-project staff (Admins/Finance) */}
+              {(!profile?.assignments || profile.assignments.length === 0) && profile?.roles && profile.roles.length > 1 && (
+                <div className="border-b border-stone-100 py-1 mb-1">
+                  <div className="px-4 py-1 text-[9px] font-bold text-stone-400 uppercase tracking-wider">
+                    Pindah Dashboard
+                  </div>
+                  {profile.roles.includes("Tim Keuangan") && (
+                    <Link
+                      href="/keuangan"
+                      className="w-full px-4 py-2 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 flex items-center gap-2 transition cursor-pointer"
+                    >
+                      Dashboard Keuangan
+                    </Link>
+                  )}
+                  {profile.roles.includes("Direktur / Manajemen") && (
+                    <Link
+                      href="/manager"
+                      className="w-full px-4 py-2 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50 flex items-center gap-2 transition cursor-pointer"
+                    >
+                      Dashboard Direktur
+                    </Link>
+                  )}
+                </div>
+              )}
+
               <button
                 onClick={handleLogout}
                 className="w-full px-4 py-2.5 text-left text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2 transition cursor-pointer"

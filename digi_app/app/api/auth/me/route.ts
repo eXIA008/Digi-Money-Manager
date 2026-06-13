@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { signToken } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,18 +27,80 @@ export async function GET(req: NextRequest) {
       return response;
     }
 
-    const firstUserProyek = user.proyek[0];
-    const userProyekDetails = firstUserProyek ? firstUserProyek.proyek : null;
-    const userProyekId = firstUserProyek ? firstUserProyek.proyekId : null;
+    const assignments = user.proyek.map((up) => ({
+      proyekId: up.proyekId,
+      nama: up.proyek.nama,
+      status: up.proyek.status,
+      role: up.role === 'Anggota Lapangan' ? 'Karyawan' : up.role,
+    }));
+
+    const activeProyekIdHeader = req.headers.get('x-user-proyek-id');
+    let activeProyekId = activeProyekIdHeader ? parseInt(activeProyekIdHeader, 10) : null;
+
+    let primaryRole = user.role;
+    const rolesSet = new Set<string>();
+
+    if (user.role === 'Direktur / Manajemen' || user.role === 'Tim Keuangan') {
+      rolesSet.add(user.role);
+    } else {
+      const hasPM = user.proyek.some(up => up.role === 'Project Manager');
+      const hasKaryawan = user.proyek.some(up => up.role === 'Anggota Lapangan') || !hasPM;
+
+      if (hasPM) rolesSet.add('Project Manager');
+      if (hasKaryawan) rolesSet.add('Karyawan');
+
+      if (activeProyekId !== null) {
+        const activeAssignment = user.proyek.find(up => up.proyekId === activeProyekId);
+        if (activeAssignment) {
+          primaryRole = activeAssignment.role === 'Anggota Lapangan' ? 'Karyawan' : 'Project Manager';
+        } else {
+          activeProyekId = null;
+          primaryRole = hasPM ? 'Project Manager' : 'Karyawan';
+        }
+      } else {
+        primaryRole = hasPM ? 'Project Manager' : 'Karyawan';
+      }
+    }
+    const allowedRoles = Array.from(rolesSet);
+
+    const activeProjectAssignment = activeProyekId !== null 
+      ? user.proyek.find(up => up.proyekId === activeProyekId) 
+      : null;
+    const userProyekDetails = activeProjectAssignment ? activeProjectAssignment.proyek : null;
 
     const { passwordHash: _, proyek: __, ...userWithoutPassword } = user;
     const responseUser = {
       ...userWithoutPassword,
+      role: primaryRole,
+      roles: allowedRoles,
       proyek: userProyekDetails,
-      proyekId: userProyekId,
+      proyekId: activeProyekId,
+      assignments,
     };
 
-    return NextResponse.json({ user: responseUser });
+    // Re-sign JWT Token to keep session current with database updates
+    const token = signToken({
+      id: user.id,
+      nama: user.nama,
+      email: user.email,
+      role: primaryRole,
+      roles: allowedRoles,
+      proyekId: activeProyekId,
+      divisi: user.divisi,
+    });
+
+    const response = NextResponse.json({ user: responseUser });
+    
+    // Set token in Cookie (httpOnly, secure, lax, expires in 24h)
+    response.cookies.set('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24, // 24 hours
+    });
+
+    return response;
   } catch (error: any) {
     console.error('Me endpoint error:', error);
     return NextResponse.json({ message: 'Internal server error', error: error.message }, { status: 500 });

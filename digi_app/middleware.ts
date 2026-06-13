@@ -125,56 +125,77 @@ export async function middleware(req: NextRequest) {
 
   // 5. Enforce RBAC
   const role = payload.role; // e.g. "Karyawan", "Project Manager", "Tim Keuangan", "Direktur / Manajemen"
+  const roles = payload.roles || [role];
 
   // If visiting the root page with a valid session, redirect to the corresponding dashboard
   if (pathname === '/') {
-    if (role === 'Karyawan') {
-      return NextResponse.redirect(new URL('/karyawan', req.url));
+    if (roles.includes('Direktur / Manajemen')) {
+      return NextResponse.redirect(new URL('/manager', req.url));
+    }
+    if (roles.includes('Tim Keuangan')) {
+      return NextResponse.redirect(new URL('/keuangan', req.url));
+    }
+    // Regular members
+    if (payload.proyekId === undefined || payload.proyekId === null) {
+      return NextResponse.redirect(new URL('/select-project', req.url));
     }
     if (role === 'Project Manager') {
       return NextResponse.redirect(new URL('/pm', req.url));
     }
-    if (role === 'Tim Keuangan') {
+    return NextResponse.redirect(new URL('/karyawan', req.url));
+  }
+
+  // Redirect Direktur / Tim Keuangan away from select-project page
+  if (pathname.startsWith('/select-project')) {
+    if (roles.includes('Direktur / Manajemen')) {
+      return NextResponse.redirect(new URL('/manager', req.url));
+    }
+    if (roles.includes('Tim Keuangan')) {
       return NextResponse.redirect(new URL('/keuangan', req.url));
     }
-    if (role === 'Direktur / Manajemen') {
-      return NextResponse.redirect(new URL('/manager', req.url));
+  }
+
+  // Enforce project selection for regular members visiting dashboards
+  const isRegularMember = roles.includes('Karyawan') || roles.includes('Project Manager');
+  if (isRegularMember && (payload.proyekId === undefined || payload.proyekId === null)) {
+    if (pathname.startsWith('/karyawan') || pathname.startsWith('/pm')) {
+      return NextResponse.redirect(new URL('/select-project', req.url));
     }
   }
 
   // Route protections
-  if (pathname.startsWith('/karyawan') && role !== 'Karyawan') {
+  if (pathname.startsWith('/karyawan') && !roles.includes('Karyawan')) {
     return NextResponse.redirect(new URL('/', req.url));
   }
 
-  if (pathname.startsWith('/pm') && role !== 'Project Manager') {
+  if (pathname.startsWith('/pm') && !roles.includes('Project Manager')) {
     return NextResponse.redirect(new URL('/', req.url));
   }
 
-  if (pathname.startsWith('/keuangan') && role !== 'Tim Keuangan') {
+  if (pathname.startsWith('/keuangan') && !roles.includes('Tim Keuangan')) {
     return NextResponse.redirect(new URL('/', req.url));
   }
 
-  if (pathname.startsWith('/manager') && role !== 'Direktur / Manajemen') {
+  if (pathname.startsWith('/manager') && !roles.includes('Direktur / Manajemen')) {
     return NextResponse.redirect(new URL('/', req.url));
   }
 
   // API protections based on roles
-  if (pathname.startsWith('/api/manager') && role !== 'Direktur / Manajemen') {
+  if (pathname.startsWith('/api/manager') && !roles.includes('Direktur / Manajemen')) {
     return new NextResponse(
       JSON.stringify({ message: 'Forbidden: Only Direktur / Manajemen can access manager APIs' }),
       { status: 403, headers: { 'Content-Type': 'application/json' } }
     );
   }
 
-  if (pathname.startsWith('/api/coa') && role !== 'Tim Keuangan') {
+  if (pathname.startsWith('/api/coa') && !roles.includes('Tim Keuangan')) {
     return new NextResponse(
       JSON.stringify({ message: 'Forbidden: Only Tim Keuangan can manage CoA' }),
       { status: 403, headers: { 'Content-Type': 'application/json' } }
     );
   }
 
-  if (pathname.startsWith('/api/proyek/') && (pathname.endsWith('/budget') || pathname.endsWith('/pos')) && role !== 'Project Manager' && role !== 'Tim Keuangan' && role !== 'Direktur / Manajemen') {
+  if (pathname.startsWith('/api/proyek/') && (pathname.endsWith('/budget') || pathname.endsWith('/pos')) && !roles.includes('Project Manager') && !roles.includes('Tim Keuangan') && !roles.includes('Direktur / Manajemen')) {
     return new NextResponse(
       JSON.stringify({ message: 'Forbidden: Only Project Manager, Tim Keuangan, or Direktur / Manajemen can modify budget' }),
       { status: 403, headers: { 'Content-Type': 'application/json' } }
@@ -182,11 +203,11 @@ export async function middleware(req: NextRequest) {
   }
 
   // Valid session, store parsed payload headers for upstream API handlers
-  // Valid session, store parsed payload headers for upstream API handlers
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set('x-user-id', String(payload.id));
   requestHeaders.set('x-user-email', String(payload.email));
   requestHeaders.set('x-user-role', String(payload.role));
+  requestHeaders.set('x-user-roles', (payload.roles || [payload.role]).join(','));
   if (payload.proyekId !== undefined && payload.proyekId !== null) {
     requestHeaders.set('x-user-proyek-id', String(payload.proyekId));
   }
@@ -199,5 +220,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/karyawan/:path*', '/pm/:path*', '/keuangan/:path*', '/manager/:path*', '/api/:path*'],
+  matcher: ['/', '/select-project/:path*', '/karyawan/:path*', '/pm/:path*', '/keuangan/:path*', '/manager/:path*', '/api/:path*'],
 };

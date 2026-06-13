@@ -56,10 +56,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const proyekId = parseInt(proyekIdStr, 10);
 
     const body = await req.json();
-    const { userIds } = body; // Array of user IDs (numbers)
+    const { userIds, members } = body;
 
-    if (!userIds || !Array.isArray(userIds)) {
-      return NextResponse.json({ message: 'userIds array is required' }, { status: 400 });
+    if ((!userIds || !Array.isArray(userIds)) && (!members || !Array.isArray(members))) {
+      return NextResponse.json({ message: 'userIds or members array is required' }, { status: 400 });
     }
 
     // Verify project exists
@@ -76,7 +76,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       });
 
       // Insert new assignments
-      if (userIds.length > 0) {
+      if (members && Array.isArray(members) && members.length > 0) {
+        const userProyeks = members.map((m: any) => ({
+          proyekId,
+          userId: m.userId,
+          role: m.role,
+        }));
+
+        await tx.userProyek.createMany({
+          data: userProyeks,
+        });
+      } else if (userIds && Array.isArray(userIds) && userIds.length > 0) {
         // Fetch user roles
         const users = await tx.user.findMany({
           where: { id: { in: userIds } },
@@ -101,7 +111,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         data: {
           userId: parseInt(direktorId, 10),
           aksi: 'assign_project_members',
-          detail: `Direktur mengatur ulang anggota proyek ${project.nama} (${userIds.length} orang)`,
+          detail: `Direktur mengatur ulang anggota proyek ${project.nama} (${(members || userIds || []).length} orang)`,
         },
       });
     }

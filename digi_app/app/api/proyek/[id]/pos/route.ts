@@ -5,14 +5,23 @@ import { prisma } from '@/lib/prisma';
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const role = req.headers.get('x-user-role');
+    const rolesHeader = req.headers.get('x-user-roles') || role || '';
+    const roles = rolesHeader.split(',');
     const userId = req.headers.get('x-user-id');
-
-    if (role !== 'Project Manager' && role !== 'Tim Keuangan' && role !== 'Direktur / Manajemen') {
-      return NextResponse.json({ message: 'Forbidden: Only Project Manager, Tim Keuangan, or Direktur / Manajemen can modify project budget' }, { status: 403 });
-    }
-
     const { id: proyekIdStr } = await params;
     const proyekId = parseInt(proyekIdStr, 10);
+
+    const isPM = await prisma.userProyek.findFirst({
+      where: {
+        userId: parseInt(userId || '0', 10),
+        proyekId: proyekId,
+        role: 'Project Manager',
+      },
+    });
+
+    if (!isPM && !roles.includes('Tim Keuangan') && !roles.includes('Direktur / Manajemen')) {
+      return NextResponse.json({ message: 'Forbidden: You must be the assigned Project Manager, Tim Keuangan, or Direktur / Manajemen to modify this project budget' }, { status: 403 });
+    }
     const body = await req.json();
     const { namaPos, nominalAlokasi } = body;
 

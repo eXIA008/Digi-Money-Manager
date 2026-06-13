@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { nama, email, password, userRole, divisi, proyekId, proyekIds } = body;
+    const { nama, email, password, userRole, divisi, proyekId, proyekIds, proyekAssignments } = body;
 
     if (!nama || !email || !password || !userRole) {
       return NextResponse.json({ message: 'Nama, email, password, dan role wajib diisi' }, { status: 400 });
@@ -86,7 +86,16 @@ export async function POST(req: NextRequest) {
     });
 
     // Associate with projects if projects are given
-    if (proyekIds && Array.isArray(proyekIds) && proyekIds.length > 0) {
+    if (proyekAssignments && Array.isArray(proyekAssignments) && proyekAssignments.length > 0) {
+      const userProyeks = proyekAssignments.map((pa: any) => ({
+        userId: newUser.id,
+        proyekId: parseInt(pa.proyekId, 10),
+        role: pa.role || (userRole === 'Project Manager' ? 'Project Manager' : 'Anggota Lapangan'),
+      }));
+      await prisma.userProyek.createMany({
+        data: userProyeks,
+      });
+    } else if (proyekIds && Array.isArray(proyekIds) && proyekIds.length > 0) {
       const userProyeks = proyekIds.map((pid: any) => ({
         userId: newUser.id,
         proyekId: parseInt(pid, 10),
@@ -135,7 +144,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { userId, nama, email, userRole, divisi, proyekIds } = body;
+    const { userId, nama, email, userRole, divisi, proyekIds, proyekAssignments } = body;
 
     if (!userId || !nama || !email || !userRole) {
       return NextResponse.json({ message: 'UserId, nama, email, dan role wajib diisi' }, { status: 400 });
@@ -174,7 +183,16 @@ export async function PUT(req: NextRequest) {
     });
 
     // Create new project assignments
-    if (proyekIds && Array.isArray(proyekIds) && proyekIds.length > 0) {
+    if (proyekAssignments && Array.isArray(proyekAssignments) && proyekAssignments.length > 0) {
+      const userProyeks = proyekAssignments.map((pa: any) => ({
+        userId: parseInt(userId, 10),
+        proyekId: parseInt(pa.proyekId, 10),
+        role: pa.role || (userRole === 'Project Manager' ? 'Project Manager' : 'Anggota Lapangan'),
+      }));
+      await prisma.userProyek.createMany({
+        data: userProyeks,
+      });
+    } else if (proyekIds && Array.isArray(proyekIds) && proyekIds.length > 0) {
       const userProyeks = proyekIds.map((pid: any) => ({
         userId: parseInt(userId, 10),
         proyekId: parseInt(pid, 10),

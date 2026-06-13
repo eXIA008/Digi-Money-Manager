@@ -132,7 +132,7 @@ export default function AntrianApprovalPage() {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch("/api/reimbursements");
+      const res = await fetch("/api/reimbursements?role=Project+Manager");
       const data = await res.json();
       if (data.reimbursements) {
         setReimbursements(data.reimbursements);

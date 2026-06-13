@@ -13,7 +13,7 @@ type Member = {
   proyek: { id: number; nama: string; status: string; roleInProyek: string }[];
 };
 
-const ROLES = ["Karyawan", "Project Manager", "Tim Keuangan", "Direktur / Manajemen"];
+const ROLES = ["Karyawan", "Tim Keuangan", "Direktur / Manajemen"];
 
 const ROLE_BADGE: Record<string, string> = {
   "Karyawan": "bg-stone-100 text-stone-600",
@@ -47,7 +47,7 @@ export default function AnggotaPage() {
   const [formError, setFormError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("Semua");
-  const [selectedProyekIds, setSelectedProyekIds] = useState<number[]>([]);
+  const [selectedProyekAssignments, setSelectedProyekAssignments] = useState<{ proyekId: number; role: string }[]>([]);
 
   const [form, setForm] = useState({
     nama: "",
@@ -79,7 +79,7 @@ export default function AnggotaPage() {
   const handleStartAdd = () => {
     setEditingMember(null);
     setForm({ nama: "", email: "", password: "", userRole: "Karyawan", divisi: "" });
-    setSelectedProyekIds([]);
+    setSelectedProyekAssignments([]);
     setShowForm(true);
     setFormError("");
     setSuccess("");
@@ -94,7 +94,10 @@ export default function AnggotaPage() {
       userRole: m.role,
       divisi: m.divisi || "",
     });
-    setSelectedProyekIds(m.proyek.map((p) => p.id));
+    setSelectedProyekAssignments(m.proyek.map((p) => ({
+      proyekId: p.id,
+      role: p.roleInProyek || (m.role === 'Project Manager' ? 'Project Manager' : 'Anggota Lapangan'),
+    })));
     setShowForm(true);
     setFormError("");
     setSuccess("");
@@ -116,7 +119,7 @@ export default function AnggotaPage() {
             email: form.email,
             userRole: form.userRole,
             divisi: form.divisi,
-            proyekIds: selectedProyekIds,
+            proyekAssignments: selectedProyekAssignments,
           }
         : {
             nama: form.nama,
@@ -124,7 +127,7 @@ export default function AnggotaPage() {
             password: form.password,
             userRole: form.userRole,
             divisi: form.divisi,
-            proyekIds: selectedProyekIds,
+            proyekAssignments: selectedProyekAssignments,
           };
 
       const res = await fetch(url, {
@@ -141,7 +144,7 @@ export default function AnggotaPage() {
 
       setSuccess(`Data anggota "${form.nama}" berhasil ${editingMember ? "diperbarui" : "didaftarkan"}!`);
       setForm({ nama: "", email: "", password: "", userRole: "Karyawan", divisi: "" });
-      setSelectedProyekIds([]);
+      setSelectedProyekAssignments([]);
       setShowForm(false);
       setEditingMember(null);
       fetchData();
@@ -289,35 +292,59 @@ export default function AnggotaPage() {
                 <label className="block text-[12px] font-bold text-stone-600 mb-2">
                   Assign ke Proyek (Dapat memilih banyak proyek)
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 bg-stone-50/50 border border-stone-200/60 rounded-xl p-4 max-h-[160px] overflow-y-auto">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-stone-50/50 border border-stone-200/60 rounded-xl p-4 max-h-[200px] overflow-y-auto">
                   {proyekList.map((p) => {
-                    const isChecked = selectedProyekIds.includes(p.id);
+                    const isChecked = selectedProyekAssignments.some((a) => a.proyekId === p.id);
                     return (
-                      <label 
+                      <div 
                         key={p.id} 
-                        className={`flex items-start gap-2.5 p-2 rounded-lg border transition cursor-pointer select-none text-[12px] ${
+                        className={`flex items-center justify-between p-2.5 rounded-lg border transition select-none text-[12px] ${
                           isChecked 
-                            ? "bg-emerald-50/60 border-emerald-200 text-emerald-800" 
+                            ? "bg-emerald-50/60 border-emerald-200 text-emerald-850" 
                             : "bg-white border-stone-200 text-stone-600 hover:bg-stone-50"
                         }`}
                       >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedProyekIds([...selectedProyekIds, p.id]);
-                            } else {
-                              setSelectedProyekIds(selectedProyekIds.filter((id) => id !== p.id));
-                            }
-                          }}
-                          className="mt-0.5 accent-[#2d6a4f]"
-                        />
-                        <div className="min-w-0">
-                          <p className="font-bold truncate leading-tight">{p.nama}</p>
-                          <span className={`text-[10px] ${isChecked ? "text-emerald-600" : "text-stone-400"}`}>{p.status}</span>
-                        </div>
-                      </label>
+                        <label className="flex items-start gap-2.5 cursor-pointer min-w-0 flex-1">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedProyekAssignments([...selectedProyekAssignments, {
+                                  proyekId: p.id,
+                                  role: form.userRole === 'Project Manager' ? 'Project Manager' : 'Anggota Lapangan'
+                                }]);
+                              } else {
+                                setSelectedProyekAssignments(selectedProyekAssignments.filter((a) => a.proyekId !== p.id));
+                              }
+                            }}
+                            className="mt-0.5 accent-[#2d6a4f]"
+                          />
+                          <div className="min-w-0">
+                            <p className="font-bold truncate leading-tight">{p.nama}</p>
+                            <span className={`text-[10px] ${isChecked ? "text-emerald-600" : "text-stone-400"}`}>{p.status}</span>
+                          </div>
+                        </label>
+
+                        {isChecked && (
+                          <div className="ml-2">
+                            <select
+                              value={selectedProyekAssignments.find((a) => a.proyekId === p.id)?.role || 'Anggota Lapangan'}
+                              onChange={(e) => {
+                                setSelectedProyekAssignments(
+                                  selectedProyekAssignments.map((a) =>
+                                    a.proyekId === p.id ? { ...a, role: e.target.value } : a
+                                  )
+                                );
+                              }}
+                              className="border border-stone-200 rounded-lg px-1.5 py-0.5 text-[10px] font-semibold text-stone-600 bg-white cursor-pointer focus:outline-none"
+                            >
+                              <option value="Anggota Lapangan">Anggota Lapangan</option>
+                              <option value="Project Manager">Project Manager</option>
+                            </select>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                   {proyekList.length === 0 && (
@@ -454,7 +481,7 @@ export default function AnggotaPage() {
                               className="inline-flex items-center gap-1 text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-md font-semibold font-sans"
                             >
                               <Briefcase size={10} className="text-emerald-600" />
-                              <span>{p.nama}</span>
+                              <span>{p.nama} ({p.roleInProyek === 'Anggota Lapangan' ? 'Karyawan' : 'PM'})</span>
                             </div>
                           ))}
                         </div>

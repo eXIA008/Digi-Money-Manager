@@ -113,7 +113,7 @@ export default function PMDashboardPage() {
         setLoading(true);
         setError(null);
 
-        const url = selectedProjectId ? `/api/dashboard?projectId=${selectedProjectId}` : "/api/dashboard";
+        const url = selectedProjectId ? `/api/dashboard?projectId=${selectedProjectId}&role=Project+Manager` : "/api/dashboard?role=Project+Manager";
         const response = await fetch(url, { method: "GET" });
         if (!response.ok) {
           const msg = await response.json().catch(() => null);
@@ -134,7 +134,7 @@ export default function PMDashboardPage() {
 
   // Fetch daftar semua proyek untuk dropdown dan pilih yang pertama secara default
   useEffect(() => {
-    fetch("/api/proyek")
+    fetch("/api/proyek?role=Project+Manager")
       .then((res) => res.json())
       .then((d) => {
         if (d.projects && d.projects.length > 0) {

@@ -40,8 +40,8 @@ export default function BudgetProyek() {
 
   const fetchDashboardData = () => {
     Promise.all([
-      fetch('/api/proyek').then(res => res.json()),
-      fetch('/api/reimbursements').then(res => res.json())
+      fetch('/api/proyek?role=Project+Manager').then(res => res.json()),
+      fetch('/api/reimbursements?role=Project+Manager').then(res => res.json())
     ])
     .then(([projectsData, reimbursementsData]) => {
       if (projectsData.projects) {

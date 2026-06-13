@@ -26,19 +26,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Invalid email or password' }, { status: 401 });
     }
 
-    // Get user's project association
-    const userProyek = await prisma.userProyek.findFirst({
+    // Get user's project associations and roles
+    const userProyeks = await prisma.userProyek.findMany({
       where: { userId: user.id },
     });
-    const userProyekId = userProyek ? userProyek.proyekId : null;
+    const userProyekId = userProyeks.length > 0 ? userProyeks[0].proyekId : null;
+
+    // Map project roles dynamically for regular members
+    const rolesSet = new Set<string>();
+    let primaryRole = user.role;
+
+    if (user.role === 'Direktur / Manajemen' || user.role === 'Tim Keuangan') {
+      rolesSet.add(user.role);
+    } else {
+      const hasPM = userProyeks.some(up => up.role === 'Project Manager');
+      const hasKaryawan = userProyeks.some(up => up.role === 'Anggota Lapangan') || !hasPM;
+
+      if (hasPM) rolesSet.add('Project Manager');
+      if (hasKaryawan) rolesSet.add('Karyawan');
+      
+      primaryRole = hasPM ? 'Project Manager' : 'Karyawan';
+    }
+    const allowedRoles = Array.from(rolesSet);
 
     // Sign JWT Token
     const token = signToken({
       id: user.id,
       nama: user.nama,
       email: user.email,
-      role: user.role,
-      proyekId: userProyekId,
+      role: primaryRole,
+      roles: allowedRoles,
+      proyekId: null, // Force selection on select-project screen
       divisi: user.divisi,
     });
 

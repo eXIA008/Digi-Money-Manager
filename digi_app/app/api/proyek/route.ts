@@ -7,15 +7,30 @@ export async function GET(req: NextRequest) {
     const role = req.headers.get('x-user-role');
     const userId = req.headers.get('x-user-id');
 
+    const { searchParams } = new URL(req.url);
+    const urlRole = searchParams.get('role') || role;
+
     let filter: any = {};
-    if (userId && (role === 'Karyawan' || role === 'Project Manager')) {
-      filter = {
-        users: {
-          some: {
-            userId: parseInt(userId, 10),
+    if (userId) {
+      if (urlRole === 'Karyawan') {
+        filter = {
+          users: {
+            some: {
+              userId: parseInt(userId, 10),
+              role: 'Anggota Lapangan',
+            },
           },
-        },
-      };
+        };
+      } else if (urlRole === 'Project Manager') {
+        filter = {
+          users: {
+            some: {
+              userId: parseInt(userId, 10),
+              role: 'Project Manager',
+            },
+          },
+        };
+      }
     }
 
     const projects = await prisma.proyek.findMany({
@@ -40,9 +55,11 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const role = req.headers.get('x-user-role');
+    const rolesHeader = req.headers.get('x-user-roles') || role || '';
+    const roles = rolesHeader.split(',');
     const userId = req.headers.get('x-user-id');
 
-    if (role !== 'Project Manager' && role !== 'Tim Keuangan' && role !== 'Direktur / Manajemen') {
+    if (!roles.includes('Project Manager') && !roles.includes('Tim Keuangan') && !roles.includes('Direktur / Manajemen')) {
       return NextResponse.json({ message: 'Forbidden: Unauthorized to create projects' }, { status: 403 });
     }
 

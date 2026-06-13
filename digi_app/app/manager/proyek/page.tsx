@@ -51,7 +51,7 @@ export default function KelolaProyekPage() {
   });
 
   // Assign members state
-  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [selectedProjectMembers, setSelectedProjectMembers] = useState<{ userId: number; role: string }[]>([]);
   
   // Budget initialization state
   const [rabTotal, setRabTotal] = useState("");
@@ -129,7 +129,7 @@ export default function KelolaProyekPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userIds: selectedUserIds,
+          members: selectedProjectMembers,
         }),
       });
 
@@ -210,8 +210,11 @@ export default function KelolaProyekPage() {
     fetch(`/api/manager/proyek/${project.id}/members`)
       .then((res) => res.json())
       .then((data) => {
-        const assignedIds = data.members?.map((m: any) => m.id) || [];
-        setSelectedUserIds(assignedIds);
+        const assignedMembers = data.members?.map((m: any) => ({
+          userId: m.id,
+          role: m.roleInProyek || (m.role === 'Project Manager' ? 'Project Manager' : 'Anggota Lapangan'),
+        })) || [];
+        setSelectedProjectMembers(assignedMembers);
         setShowAssignMembers(project);
       })
       .catch((err) => console.error("Error loading assigned members:", err))
@@ -463,7 +466,7 @@ export default function KelolaProyekPage() {
                     <label className="block text-[12px] font-bold text-stone-600 mb-2">Pilih Anggota Tim</label>
                     <div className="border border-stone-200 rounded-xl max-h-[260px] overflow-y-auto divide-y divide-stone-100 p-1 bg-stone-50/20">
                       {members.map((member) => {
-                        const isChecked = selectedUserIds.includes(member.id);
+                        const isChecked = selectedProjectMembers.some((m) => m.userId === member.id);
                         return (
                           <label key={member.id} className="flex items-center justify-between p-3 hover:bg-stone-50 rounded-lg cursor-pointer transition select-none">
                             <div className="flex items-center gap-3">
@@ -472,9 +475,12 @@ export default function KelolaProyekPage() {
                                 checked={isChecked}
                                 onChange={(e) => {
                                   if (e.target.checked) {
-                                    setSelectedUserIds([...selectedUserIds, member.id]);
+                                    setSelectedProjectMembers([...selectedProjectMembers, {
+                                      userId: member.id,
+                                      role: member.role === 'Project Manager' ? 'Project Manager' : 'Anggota Lapangan'
+                                    }]);
                                   } else {
-                                    setSelectedUserIds(selectedUserIds.filter((id) => id !== member.id));
+                                    setSelectedProjectMembers(selectedProjectMembers.filter((m) => m.userId !== member.id));
                                   }
                                 }}
                                 className="accent-[#2d6a4f]"
@@ -484,9 +490,29 @@ export default function KelolaProyekPage() {
                                 <p className="text-[11px] text-stone-400 font-mono mt-0.5">{member.email}</p>
                               </div>
                             </div>
-                            <span className="text-[10px] font-semibold text-stone-500 bg-stone-100 px-2 py-0.5 rounded">
-                              {member.role}
-                            </span>
+                            
+                            {isChecked ? (
+                              <div className="relative" onClick={(e) => e.stopPropagation()}>
+                                <select
+                                  value={selectedProjectMembers.find((m) => m.userId === member.id)?.role || 'Anggota Lapangan'}
+                                  onChange={(e) => {
+                                    setSelectedProjectMembers(
+                                      selectedProjectMembers.map((m) =>
+                                        m.userId === member.id ? { ...m, role: e.target.value } : m
+                                      )
+                                    );
+                                  }}
+                                  className="border border-stone-200 rounded-lg px-2 py-1 text-[11px] font-semibold text-stone-650 bg-white cursor-pointer focus:outline-none"
+                                >
+                                  <option value="Anggota Lapangan">Anggota Lapangan</option>
+                                  <option value="Project Manager">Project Manager</option>
+                                </select>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-semibold text-stone-500 bg-stone-100 px-2 py-0.5 rounded">
+                                {member.role}
+                              </span>
+                            )}
                           </label>
                         );
                       })}

@@ -45,7 +45,7 @@ function AjukanReimbursementContent() {
 
   useEffect(() => {
     // Load projects to select
-    fetch('/api/proyek')
+    fetch('/api/proyek?role=Karyawan')
       .then(res => res.json())
       .then(data => {
         if (data.projects) {
@@ -67,7 +67,7 @@ function AjukanReimbursementContent() {
     // Pre-fill the form with the rejected submission's data and jump straight to "Review & kirim"
     if (!resubmitId) return;
 
-    fetch('/api/reimbursements')
+    fetch('/api/reimbursements?role=Karyawan')
       .then(res => res.json())
       .then(data => {
         const original = data.reimbursements?.find((r: any) => String(r.id) === resubmitId);

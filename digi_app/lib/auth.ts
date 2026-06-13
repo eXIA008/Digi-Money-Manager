@@ -17,6 +17,7 @@ export interface JWTPayload {
   nama: string;
   email: string;
   role: string;
+  roles?: string[];
   proyekId?: number | null;
   divisi?: string | null;
 }

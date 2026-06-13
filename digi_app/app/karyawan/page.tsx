@@ -74,7 +74,7 @@ export default function BerandaKaryawanPage() {
         setLoading(true);
         setError(null);
 
-        const response = await fetch("/api/dashboard", { method: "GET" });
+        const response = await fetch("/api/dashboard?role=Karyawan", { method: "GET" });
 
         if (!response.ok) {
           const msg = await response.json().catch(() => null);

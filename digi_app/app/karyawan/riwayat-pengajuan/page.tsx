@@ -522,7 +522,7 @@ export default function RiwayatPengajuanPage() {
   const fetchReimbursements = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/reimbursements');
+      const res = await fetch('/api/reimbursements?role=Karyawan');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.reimbursements) {

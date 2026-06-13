@@ -55,14 +55,12 @@ export default function LoginPage() {
       // Redirect based on role
       setTimeout(() => {
         const role = data.user.role;
-        if (role === 'Karyawan') {
-          router.push('/karyawan');
-        } else if (role === 'Project Manager') {
-          router.push('/pm');
-        } else if (role === 'Tim Keuangan') {
+        if (role === 'Tim Keuangan') {
           router.push('/keuangan');
+        } else if (role === 'Direktur / Manajemen') {
+          router.push('/manager');
         } else {
-          router.push('/');
+          router.push('/select-project');
         }
         router.refresh();
       }, 800);

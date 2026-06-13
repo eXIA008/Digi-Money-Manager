@@ -34,15 +34,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const urlRole = searchParams.get('role') || role;
+
     let filter: any = {};
 
-    if (role === 'Karyawan') {
+    if (urlRole === 'Karyawan') {
       // Employees only see their own submissions
       filter.userId = parseInt(userId, 10);
-    } else if (role === 'Project Manager') {
-      // PMs see submissions belonging to all their assigned projects
+    } else if (urlRole === 'Project Manager') {
+      // PMs see submissions belonging to all projects where they are assigned as Project Manager
       const pmProyeks = await prisma.userProyek.findMany({
-        where: { userId: parseInt(userId, 10) },
+        where: { 
+          userId: parseInt(userId, 10),
+          role: 'Project Manager'
+        },
         select: { proyekId: true },
       });
       const projectIds = pmProyeks.map((up) => up.proyekId);
@@ -195,10 +201,10 @@ export async function POST(req: NextRequest) {
     // Create notification for the Project Manager of the project (if any)
     const pmUsers = await prisma.user.findMany({
       where: {
-        role: 'Project Manager',
         proyek: {
           some: {
             proyekId: parseInt(proyekId, 10),
+            role: 'Project Manager',
           },
         },
       },
