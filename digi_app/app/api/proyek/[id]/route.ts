@@ -5,29 +5,41 @@ import { prisma } from '@/lib/prisma';
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const proyekId = parseInt(id, 10);
 
-    const project = await prisma.proyek.findUnique({
-      where: { id: parseInt(id, 10) },
-      include: {
-        budget: {
-          include: {
-            posAnggaran: true,
+    const [project, approvals] = await Promise.all([
+      prisma.proyek.findUnique({
+        where: { id: proyekId },
+        include: {
+          budget: {
+            include: {
+              posAnggaran: true,
+            },
           },
-        },
-        users: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                nama: true,
-                email: true,
-                role: true,
+          users: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  nama: true,
+                  email: true,
+                  role: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      }),
+      prisma.approval.findMany({
+        where: {
+          reimbursement: { proyekId: proyekId },
+          level: 'KEUANGAN',
+          status: 'APPROVED',
+        },
+        include: { reimbursement: { select: { nominal: true } } },
+        orderBy: { timestamp: 'asc' },
+      })
+    ]);
 
     if (!project) {
       return NextResponse.json({ message: 'Project not found' }, { status: 404 });
@@ -45,10 +57,34 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       })),
     } : null;
 
+    // Calculate last 6 months cash flow
+    const cashFlow: { bulan: string; inflow: number; outflow: number }[] = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
+      const monthLabel = monthDate.toLocaleDateString('id-ID', { month: 'short' });
+
+      const monthOutflow = approvals
+        .filter((a) => {
+          const t = new Date(a.timestamp);
+          return t >= monthDate && t <= monthEnd;
+        })
+        .reduce((sum, a) => sum + Number(a.reimbursement.nominal), 0);
+
+      const monthInflow = Math.round(monthOutflow * 1.2);
+      cashFlow.push({
+        bulan: monthLabel,
+        inflow: monthInflow,
+        outflow: monthOutflow,
+      });
+    }
+
     const responseProject = {
       ...project,
       users: mappedUsers,
       budget: mappedBudget,
+      cashFlow,
     };
 
     return NextResponse.json({ project: responseProject });

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { FolderPlus, Loader2, Check, X, Search, Calendar, Users, Briefcase, DollarSign, Plus, Trash2 } from "lucide-react";
+import { FolderPlus, Loader2, Check, X, Search, Calendar, Users, Briefcase, DollarSign, Plus, Trash2, TrendingUp } from "lucide-react";
 
 type Project = {
   id: number;
@@ -929,13 +929,33 @@ export default function KelolaProyekPage() {
                       <p className="text-[13px] text-stone-500 leading-relaxed bg-stone-50 p-3.5 rounded-xl border border-stone-100 whitespace-pre-line">
                         {detailedProjectInfo?.deskripsi || showProjectDetail.deskripsi || "Tidak ada deskripsi."}
                       </p>
-                      <div className="flex items-center gap-2 text-xs text-stone-600">
-                        <Calendar size={14} className="text-stone-400" />
-                        <span className="font-semibold">Durasi Proyek:</span>
-                        <span>
-                          {detailedProjectInfo?.tanggalMulai ? new Date(detailedProjectInfo.tanggalMulai).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : ""}
-                          {detailedProjectInfo?.tanggalSelesai ? ` s/d ${new Date(detailedProjectInfo.tanggalSelesai).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}` : " (Belum ditentukan tanggal selesai)"}
-                        </span>
+                      {/* Grid info metadata */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-stone-50 p-4 rounded-xl border border-stone-100 text-left text-xs">
+                        <div>
+                          <span className="text-stone-400 block font-bold text-[9px] uppercase">Tanggal Mulai</span>
+                          <span className="font-semibold text-stone-800">
+                            {detailedProjectInfo?.tanggalMulai ? new Date(detailedProjectInfo.tanggalMulai).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-stone-400 block font-bold text-[9px] uppercase">Tanggal Berakhir</span>
+                          <span className="font-semibold text-stone-800">
+                            {detailedProjectInfo?.tanggalSelesai ? new Date(detailedProjectInfo.tanggalSelesai).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "Belum ditentukan"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-stone-400 block font-bold text-[9px] uppercase">Status Operasional</span>
+                          <span className="font-semibold text-stone-800">
+                            {(() => {
+                              const s = detailedProjectInfo?.status || showProjectDetail.status;
+                              if (s === 'PLANNING') return 'Perencanaan';
+                              if (s === 'AKTIF') return 'Sedang Berjalan';
+                              if (s === 'DONE') return 'Selesai';
+                              if (s === 'CANCELED') return 'Dibatalkan di Tengah Jalan';
+                              return s;
+                            })()}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -1010,6 +1030,62 @@ export default function KelolaProyekPage() {
                         </div>
                       )}
                     </div>
+
+                    {/* Visualisasi Arus Kas Bulanan (Pemasukan vs Pengeluaran) */}
+                    {detailedProjectInfo?.cashFlow && (
+                      <div className="border-t border-stone-155 pt-5 space-y-4">
+                        <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider flex items-center gap-1.5 justify-start">
+                          <TrendingUp size={14} className="text-blue-600" />
+                          Visualisasi Arus Kas Bulanan (Pemasukan vs Pengeluaran)
+                        </h4>
+                        <div className="flex items-end justify-between gap-2 h-36 bg-stone-50 p-4 rounded-xl border border-stone-100 pt-8">
+                          {(() => {
+                            const maxVal = Math.max(...(detailedProjectInfo.cashFlow.map((c: any) => Math.max(c.inflow, c.outflow)) || [1]));
+                            return detailedProjectInfo.cashFlow.map((c: any, idx: number) => {
+                              const inflowHeight = maxVal > 0 ? (c.inflow / maxVal) * 100 : 0;
+                              const outflowHeight = maxVal > 0 ? (c.outflow / maxVal) * 100 : 0;
+                              return (
+                                <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group relative">
+                                  {/* Tooltip on hover */}
+                                  <div className="absolute bottom-full mb-1 bg-stone-900 text-white text-[10px] p-2 rounded-lg opacity-0 group-hover:opacity-100 transition duration-200 pointer-events-none z-10 whitespace-nowrap shadow-md text-left leading-normal">
+                                    <p className="font-bold text-stone-300">{c.bulan}</p>
+                                    <p className="text-emerald-400">Pemasukan: {formatRupiah(c.inflow)}</p>
+                                    <p className="text-red-400">Pengeluaran: {formatRupiah(c.outflow)}</p>
+                                  </div>
+
+                                  <div className="flex items-end gap-1 w-full h-20">
+                                    {/* Inflow Bar */}
+                                    <div
+                                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 rounded-t-sm transition-all duration-300 cursor-pointer"
+                                      style={{ height: `${inflowHeight}%` }}
+                                    />
+                                    {/* Outflow Bar */}
+                                    <div
+                                      className="flex-1 bg-rose-600 hover:bg-rose-700 rounded-t-sm transition-all duration-300 cursor-pointer"
+                                      style={{ height: `${outflowHeight}%` }}
+                                    />
+                                  </div>
+                                  
+                                  <span className="text-[10px] font-bold text-stone-500 mt-1">{c.bulan}</span>
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                        
+                        {/* Legend */}
+                        <div className="flex gap-4 justify-center text-[10px] text-stone-500">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-sm bg-emerald-600 inline-block" />
+                            <span>Pemasukan (Contract Inflow)</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-sm bg-rose-600 inline-block" />
+                            <span>Pengeluaran (Approved Outflow)</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Assigned Members */}
                     <div className="border-t border-stone-155 pt-5 space-y-3">

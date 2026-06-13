@@ -88,7 +88,7 @@ function CashFlowChart({ data }: { data: CashFlowMonth[] }) {
             return (
               <div
                 key={i}
-                className="flex-1 flex items-end gap-0.5 cursor-pointer group"
+                className="flex-1 flex items-end gap-0.5 cursor-pointer group h-full"
                 onMouseEnter={(e) => {
                   const rect = chartRef.current?.getBoundingClientRect();
                   if (rect) setTooltip({ i, x: e.clientX - rect.left, y: 0 });
