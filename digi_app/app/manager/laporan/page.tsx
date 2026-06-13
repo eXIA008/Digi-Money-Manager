@@ -496,13 +496,261 @@ export default function LaporanPage() {
 
   const handleDownloadExcel = (id: string) => {
     const report = REPORTS.find((r) => r.id === id);
-    const now = new Date().toLocaleDateString("id-ID");
-    const content = `Digi Money Manager,${report?.title},${now}`;
-    const blob = new Blob([content], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    if (!report) return;
+
+    const now = new Date().toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+    const metrics = dashboardData?.metrics || {};
+    const projectList = dashboardData?.projectList || [];
+    const cashFlow = dashboardData?.cashFlow || [];
+
+    let tableHtml = "";
+
+    if (id === "executive-summary") {
+      const activeProjectsCount = metrics.activeProjectCount || 0;
+      const totalRAB = metrics.totalRABAllocated || 0;
+      const totalDisbursed = metrics.totalDisbursed || 0;
+      const margin = metrics.marginBersih || 0;
+
+      tableHtml = `
+        <tr style="height: 30px;"><td colspan="8" style="font-size: 16px; font-weight: bold; color: #2d6a4f;">DIGI MONEY MANAGER</td></tr>
+        <tr style="height: 24px;"><td colspan="8" style="font-size: 14px; font-weight: bold; color: #333333;">${report.title.toUpperCase()}</td></tr>
+        <tr><td colspan="8" style="font-size: 11px; color: #666666;">Digenerate pada: ${now}</td></tr>
+        <tr style="height: 20px;"><td colspan="8"></td></tr>
+        
+        <tr style="font-weight: bold; background-color: #e5e7eb;">
+          <td colspan="4" style="border: 1px solid #d1d5db; padding: 6px;">METRIK KPI</td>
+          <td colspan="4" style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">NILAI</td>
+        </tr>
+        <tr>
+          <td colspan="4" style="border: 1px solid #e5e7eb; padding: 6px;">Proyek Aktif</td>
+          <td colspan="4" style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold;">${activeProjectsCount} Proyek</td>
+        </tr>
+        <tr>
+          <td colspan="4" style="border: 1px solid #e5e7eb; padding: 6px;">Total RAB Dialokasikan</td>
+          <td colspan="4" style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold;">${totalRAB}</td>
+        </tr>
+        <tr>
+          <td colspan="4" style="border: 1px solid #e5e7eb; padding: 6px;">Total Realisasi Pengeluaran</td>
+          <td colspan="4" style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold; color: #dc2626;">${totalDisbursed}</td>
+        </tr>
+        <tr>
+          <td colspan="4" style="border: 1px solid #e5e7eb; padding: 6px;">Margin Bersih Rata-rata</td>
+          <td colspan="4" style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold; color: #16a34a;">${margin}%</td>
+        </tr>
+        <tr style="height: 20px;"><td colspan="8"></td></tr>
+
+        <tr style="font-weight: bold; color: #2d6a4f;"><td colspan="8" style="font-size: 13px;">DAFTAR REALISASI ANGGARAN PROYEK</td></tr>
+        <tr style="background-color: #2d6a4f; color: #ffffff; font-weight: bold; text-align: center;">
+          <td style="border: 1px solid #2d6a4f; padding: 6px;">KODE</td>
+          <td style="border: 1px solid #2d6a4f; padding: 6px; text-align: left;">NAMA PROYEK</td>
+          <td style="border: 1px solid #2d6a4f; padding: 6px; text-align: left;">PM / KLIEN</td>
+          <td style="border: 1px solid #2d6a4f; padding: 6px;">STATUS</td>
+          <td style="border: 1px solid #2d6a4f; padding: 6px; text-align: right;">RAB TOTAL</td>
+          <td style="border: 1px solid #2d6a4f; padding: 6px; text-align: right;">REALISASI</td>
+          <td style="border: 1px solid #2d6a4f; padding: 6px; text-align: right;">SISA BUDGET</td>
+          <td style="border: 1px solid #2d6a4f; padding: 6px; text-align: right;">MARGIN</td>
+        </tr>
+        ${projectList.map((p: any) => `
+          <tr>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: center; font-family: monospace;">${p.kode}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; font-weight: bold;">${p.proyekNama}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; color: #4b5563;">${p.klien}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: center;">${p.status}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: right;">${p.rabTotal}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; color: #b91c1c;">${p.realisasi}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; color: #15803d;">${p.sisaBudget}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold;">${p.margin}%</td>
+          </tr>
+        `).join('')}
+      `;
+    } else if (id === "cash-flow") {
+      const outflowTotal = cashFlow.reduce((sum: number, f: any) => sum + f.outflow, 0);
+      const inflowTotal = cashFlow.reduce((sum: number, f: any) => sum + f.inflow, 0);
+      const netCash = inflowTotal - outflowTotal;
+
+      tableHtml = `
+        <tr style="height: 30px;"><td colspan="4" style="font-size: 16px; font-weight: bold; color: #2563eb;">DIGI MONEY MANAGER</td></tr>
+        <tr style="height: 24px;"><td colspan="4" style="font-size: 14px; font-weight: bold; color: #333333;">${report.title.toUpperCase()}</td></tr>
+        <tr><td colspan="4" style="font-size: 11px; color: #666666;">Digenerate pada: ${now}</td></tr>
+        <tr style="height: 20px;"><td colspan="4"></td></tr>
+
+        <tr style="font-weight: bold; background-color: #e5e7eb;">
+          <td colspan="2" style="border: 1px solid #d1d5db; padding: 6px;">METRIK CASH FLOW</td>
+          <td colspan="2" style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">NILAI</td>
+        </tr>
+        <tr>
+          <td colspan="2" style="border: 1px solid #e5e7eb; padding: 6px;">Total Inflow (Estimasi)</td>
+          <td colspan="2" style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold; color: #15803d;">${inflowTotal}</td>
+        </tr>
+        <tr>
+          <td colspan="2" style="border: 1px solid #e5e7eb; padding: 6px;">Total Outflow (Realisasi)</td>
+          <td colspan="2" style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold; color: #b91c1c;">${outflowTotal}</td>
+        </tr>
+        <tr>
+          <td colspan="2" style="border: 1px solid #e5e7eb; padding: 6px;">Net Cash Flow</td>
+          <td colspan="2" style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold; color: #1e40af;">${netCash}</td>
+        </tr>
+        <tr style="height: 20px;"><td colspan="4"></td></tr>
+
+        <tr style="font-weight: bold; color: #2563eb;"><td colspan="4" style="font-size: 13px;">ALIRAN KAS BULANAN (12 MINGGU TERAKHIR)</td></tr>
+        <tr style="background-color: #2563eb; color: #ffffff; font-weight: bold; text-align: center;">
+          <td style="border: 1px solid #2563eb; padding: 6px; text-align: left;">PERIODE BULAN</td>
+          <td style="border: 1px solid #2563eb; padding: 6px; text-align: right;">CASH INFLOW</td>
+          <td style="border: 1px solid #2563eb; padding: 6px; text-align: right;">CASH OUTFLOW</td>
+          <td style="border: 1px solid #2563eb; padding: 6px; text-align: right;">NET CASH FLOW</td>
+        </tr>
+        ${cashFlow.map((cf: any) => `
+          <tr>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; font-weight: bold;">${cf.bulan}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; color: #15803d;">${cf.inflow}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; color: #b91c1c;">${cf.outflow}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold; color: ${cf.inflow - cf.outflow >= 0 ? '#15803d' : '#b91c1c'}">${cf.inflow - cf.outflow}</td>
+          </tr>
+        `).join('')}
+      `;
+    } else if (id === "profitability") {
+      const avgMargin = metrics.avgMargin || 0;
+      const totalPotensi = metrics.remainingBudgets || 0;
+
+      tableHtml = `
+        <tr style="height: 30px;"><td colspan="6" style="font-size: 16px; font-weight: bold; color: #059669;">DIGI MONEY MANAGER</td></tr>
+        <tr style="height: 24px;"><td colspan="6" style="font-size: 14px; font-weight: bold; color: #333333;">${report.title.toUpperCase()}</td></tr>
+        <tr><td colspan="6" style="font-size: 11px; color: #666666;">Digenerate pada: ${now}</td></tr>
+        <tr style="height: 20px;"><td colspan="6"></td></tr>
+
+        <tr style="font-weight: bold; background-color: #e5e7eb;">
+          <td colspan="3" style="border: 1px solid #d1d5db; padding: 6px;">METRIK PROFITABILITAS</td>
+          <td colspan="3" style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">NILAI</td>
+        </tr>
+        <tr>
+          <td colspan="3" style="border: 1px solid #e5e7eb; padding: 6px;">Rata-rata Margin Proyek</td>
+          <td colspan="3" style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold; color: #059669;">${avgMargin}%</td>
+        </tr>
+        <tr>
+          <td colspan="3" style="border: 1px solid #e5e7eb; padding: 6px;">Potensi Margin Sisa</td>
+          <td colspan="3" style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold;">${totalPotensi}</td>
+        </tr>
+        <tr style="height: 20px;"><td colspan="6"></td></tr>
+
+        <tr style="font-weight: bold; color: #059669;"><td colspan="6" style="font-size: 13px;">MARGIN KEUNTUNGAN DAN REALISASI BUDGET</td></tr>
+        <tr style="background-color: #059669; color: #ffffff; font-weight: bold; text-align: center;">
+          <td style="border: 1px solid #059669; padding: 6px; text-align: left;">NAMA PROYEK</td>
+          <td style="border: 1px solid #059669; padding: 6px;">KODE</td>
+          <td style="border: 1px solid #059669; padding: 6px; text-align: right;">ANGGARAN RAB</td>
+          <td style="border: 1px solid #059669; padding: 6px; text-align: right;">PENGELUARAN</td>
+          <td style="border: 1px solid #059669; padding: 6px; text-align: right;">SISA BUDGET</td>
+          <td style="border: 1px solid #059669; padding: 6px; text-align: right;">MARGIN BERSIH</td>
+        </tr>
+        ${projectList.map((p: any) => `
+          <tr>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; font-weight: bold;">${p.proyekNama}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: center; font-family: monospace;">${p.kode}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: right;">${p.rabTotal}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; color: #b91c1c;">${p.realisasi}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; color: #15803d;">${p.sisaBudget}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold; color: ${p.margin >= 20 ? '#15803d' : p.margin >= 12 ? '#d97706' : '#b91c1c'}">${p.margin}%</td>
+          </tr>
+        `).join('')}
+      `;
+    } else if (id === "reimbursement-report") {
+      const totalCount = reimbursements.length;
+      const approvedCount = reimbursements.filter(r => r.status === 'APPROVED').length;
+      const approvedNominal = reimbursements.filter(r => r.status === 'APPROVED').reduce((sum, r) => sum + Number(r.nominal), 0);
+      const pendingCount = reimbursements.filter(r => r.status === 'SUBMITTED' || r.status === 'APPROVED_BY_PM').length;
+
+      tableHtml = `
+        <tr style="height: 30px;"><td colspan="7" style="font-size: 16px; font-weight: bold; color: #d97706;">DIGI MONEY MANAGER</td></tr>
+        <tr style="height: 24px;"><td colspan="7" style="font-size: 14px; font-weight: bold; color: #333333;">${report.title.toUpperCase()}</td></tr>
+        <tr><td colspan="7" style="font-size: 11px; color: #666666;">Digenerate pada: ${now}</td></tr>
+        <tr style="height: 20px;"><td colspan="7"></td></tr>
+
+        <tr style="font-weight: bold; background-color: #e5e7eb;">
+          <td colspan="3" style="border: 1px solid #d1d5db; padding: 6px;">METRIK REIMBURSEMENT</td>
+          <td colspan="4" style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">NILAI</td>
+        </tr>
+        <tr>
+          <td colspan="3" style="border: 1px solid #e5e7eb; padding: 6px;">Total Pengajuan</td>
+          <td colspan="4" style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold;">${totalCount} Pengajuan</td>
+        </tr>
+        <tr>
+          <td colspan="3" style="border: 1px solid #e5e7eb; padding: 6px;">Total Nominal Dicairkan (Approved)</td>
+          <td colspan="4" style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold; color: #15803d;">${approvedNominal}</td>
+        </tr>
+        <tr>
+          <td colspan="3" style="border: 1px solid #e5e7eb; padding: 6px;">Jumlah Transaksi Dicairkan</td>
+          <td colspan="4" style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold;">${approvedCount} Transaksi</td>
+        </tr>
+        <tr>
+          <td colspan="3" style="border: 1px solid #e5e7eb; padding: 6px;">Menunggu Verifikasi (Pending Antrean)</td>
+          <td colspan="4" style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold; color: #d97706;">${pendingCount} Pengajuan</td>
+        </tr>
+        <tr style="height: 20px;"><td colspan="7"></td></tr>
+
+        <tr style="font-weight: bold; color: #d97706;"><td colspan="7" style="font-size: 13px;">RIWAYAT PENGAJUAN REIMBURSEMENT KARYAWAN</td></tr>
+        <tr style="background-color: #d97706; color: #ffffff; font-weight: bold; text-align: center;">
+          <td style="border: 1px solid #d97706; padding: 6px;">ID</td>
+          <td style="border: 1px solid #d97706; padding: 6px; text-align: left;">PENGAJU</td>
+          <td style="border: 1px solid #d97706; padding: 6px; text-align: left;">MERCHANT</td>
+          <td style="border: 1px solid #d97706; padding: 6px; text-align: left;">PROYEK</td>
+          <td style="border: 1px solid #d97706; padding: 6px; text-align: left;">POS ANGGARAN</td>
+          <td style="border: 1px solid #d97706; padding: 6px; text-align: right;">NOMINAL</td>
+          <td style="border: 1px solid #d97706; padding: 6px;">STATUS</td>
+        </tr>
+        ${reimbursements.map((r: any) => `
+          <tr>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: center; font-family: monospace;">RB-${r.id}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; font-weight: bold;">${r.user?.nama || 'Karyawan'}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px;">${r.ocrData?.merchant || 'N/A'}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; color: #4b5563;">${r.proyek?.nama || 'Umum'}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px;">${r.posAnggaran?.namaPos || r.posAnggaran?.deskripsi || 'N/A'}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: right; font-weight: bold;">${Number(r.nominal)}</td>
+            <td style="border: 1px solid #e5e7eb; padding: 6px; text-align: center;">${r.status}</td>
+          </tr>
+        `).join('')}
+      `;
+    }
+
+    const excelHtml = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+      <!--[if gte mso 9]>
+      <xml>
+       <x:Workbook>
+        <x:Worksheets>
+         <x:Worksheet>
+          <x:Name>${report.title.slice(0, 30)}</x:Name>
+          <x:WorksheetOptions>
+           <x:DisplayGridlines/>
+          </x:WorksheetOptions>
+         </x:Worksheet>
+        </x:Worksheets>
+       </x:Workbook>
+      </xml>
+      <![endif]-->
+      <meta charset="utf-8">
+      <style>
+        table { border-collapse: collapse; }
+        td { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 11px; }
+      </style>
+      </head>
+      <body>
+        <table>
+          ${tableHtml}
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([excelHtml], { type: "application/vnd.ms-excel;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${id}-${Date.now()}.xlsx`;
+    a.download = `${id}-${Date.now()}.xls`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
