@@ -36,6 +36,8 @@ type LedgerAccount = {
   nama: string;
   saldo: string;
   transaksi: LedgerTransaction[];
+  totalDebit: number;
+  totalKredit: number;
 };
 
 const tabs = ["Jurnal Umum", "Buku Besar", "Neraca", "Laba Rugi"];
@@ -268,7 +270,9 @@ function JurnalAkuntansiContent() {
         kode,
         nama: acc.nama,
         saldo: Math.abs(balance).toLocaleString('id-ID'),
-        transaksi: acc.transaksi
+        transaksi: acc.transaksi,
+        totalDebit: acc.totalDebit,
+        totalKredit: acc.totalKredit
       };
     });
   }, [filteredReport]);
@@ -412,148 +416,148 @@ function JurnalAkuntansiContent() {
             </div>
           </div>
 
-          {/* Panel Tabel */}
-          <div className="bg-white border border-stone-200/80 rounded-xl shadow-sm">
+          {/* Baris Tab + Kontrol */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 sm:gap-0 mb-4">
+            <div className="p-1 bg-[#F1EEE6] rounded-xl border border-[#E6E1D4] inline-flex items-center gap-1 overflow-x-auto">
+              {tabs.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => handleTabChange(tab)}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer shrink-0 ${
+                    activeTab === tab
+                      ? "bg-white text-[#14130F] shadow-sm font-semibold border border-[#E4E0D9]/40"
+                      : "text-[#6A6660] hover:text-[#14130F] hover:bg-white/20"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
 
-            {/* Baris Tab + Kontrol */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between px-6 border-b border-stone-200 bg-white rounded-t-xl gap-4 sm:gap-0">
-              <div className="flex overflow-x-auto overflow-y-hidden">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => handleTabChange(tab)}
-                    className={`px-4 py-4 text-[13px] font-medium transition border-b-2 -mb-px shrink-0 cursor-pointer ${
-                      activeTab === tab
-                        ? "border-stone-900 text-stone-900 font-semibold"
-                        : "border-transparent text-stone-400 hover:text-stone-600"
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Wrapper unified Ref container */}
+              <div ref={periodeRef} className="relative flex items-center gap-2 shrink-0">
+                {/* Label Periode */}
+                <button
+                  onClick={() => setShowPeriode((v) => !v)}
+                  className="flex items-center gap-2 text-[12px] font-medium text-stone-600 border border-stone-200 bg-stone-50 px-3 py-1.5 rounded-lg shrink-0 hover:bg-stone-100 transition cursor-pointer"
+                >
+                  <Calendar size={13} className="text-stone-400 shrink-0" />
+                  <span>{periodeLabel(appliedStart, appliedEnd)}</span>
+                </button>
 
-              <div className="flex items-center gap-2 py-2 sm:py-0 overflow-x-auto">
-                {/* Wrapper unified Ref container */}
-                <div ref={periodeRef} className="relative flex items-center gap-2 shrink-0">
-                  {/* Label Periode */}
+                {/* Tombol Filter + Dropdown Periode */}
+                <div className="relative">
                   <button
                     onClick={() => setShowPeriode((v) => !v)}
-                    className="flex items-center gap-2 text-[12px] font-medium text-stone-600 border border-stone-200 bg-stone-50 px-3 py-1.5 rounded-lg shrink-0 hover:bg-stone-100 transition cursor-pointer"
+                    className={`flex items-center gap-1.5 text-[12px] font-medium border px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                      showPeriode
+                        ? "bg-stone-100 border-stone-300 text-stone-800"
+                        : "bg-white border-stone-200 text-stone-600 hover:bg-stone-50"
+                    }`}
                   >
-                    <Calendar size={13} className="text-stone-400 shrink-0" />
-                    <span>{periodeLabel(appliedStart, appliedEnd)}</span>
+                    <Filter size={13} className="text-stone-400" />
+                    <span>Filter</span>
+                    <ChevronDown size={12} className={`text-stone-400 transition-transform ${showPeriode ? "rotate-180" : ""}`} />
                   </button>
 
-                  {/* Tombol Filter + Dropdown Periode */}
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowPeriode((v) => !v)}
-                      className={`flex items-center gap-1.5 text-[12px] font-medium border px-3 py-1.5 rounded-lg transition cursor-pointer ${
-                        showPeriode
-                          ? "bg-stone-100 border-stone-300 text-stone-800"
-                          : "bg-white border-stone-200 text-stone-600 hover:bg-stone-50"
-                      }`}
-                    >
-                      <Filter size={13} className="text-stone-400" />
-                      <span>Filter</span>
-                      <ChevronDown size={12} className={`text-stone-400 transition-transform ${showPeriode ? "rotate-180" : ""}`} />
-                    </button>
+                  {showPeriode && (
+                    <div className="absolute right-0 top-full mt-2 z-50 bg-white border border-stone-200 rounded-xl shadow-lg p-4 w-72">
+                      <p className="text-[12px] font-semibold text-stone-700 mb-3">Pilih Rentang Periode</p>
 
-                    {showPeriode && (
-                      <div className="absolute right-0 top-full mt-2 z-50 bg-white border border-stone-200 rounded-xl shadow-lg p-4 w-72">
-                        <p className="text-[12px] font-semibold text-stone-700 mb-3">Pilih Rentang Periode</p>
-
-                        {/* Pilihan Cepat */}
-                        <div className="mb-4">
-                          <p className="text-[11px] font-medium text-stone-400 mb-2">Pilihan Cepat</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {["1 Minggu", "1 Bulan", "3 Bulan", "6 Bulan", "1 Tahun"].map((opt) => (
-                              <button
-                                key={opt}
-                                onClick={() => handleQuickRange(opt)}
-                                className={`text-[11px] px-2.5 py-1 rounded-full font-medium transition-colors cursor-pointer ${
-                                  selectedRangeOption === opt
-                                    ? "bg-stone-900 text-white"
-                                    : "border border-stone-200 text-stone-600 hover:bg-stone-50 bg-white"
-                                }`}
-                              >
-                                {opt}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="h-px bg-stone-100 my-3" />
-
-                        <div className="space-y-3">
-                          <div>
-                            <label className="text-[11px] font-medium text-stone-400 mb-1 block">Dari</label>
-                            <input
-                              type="date"
-                              value={draftStart}
-                              onChange={(e) => {
-                                setDraftStart(e.target.value);
-                                setSelectedRangeOption("");
-                              }}
-                              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-[12px] text-stone-700 bg-stone-50 focus:outline-none focus:border-stone-400 focus:bg-white transition"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[11px] font-medium text-stone-400 mb-1 block">Sampai</label>
-                            <input
-                              type="date"
-                              value={draftEnd}
-                              min={draftStart}
-                              onChange={(e) => {
-                                setDraftEnd(e.target.value);
-                                setSelectedRangeOption("");
-                              }}
-                              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-[12px] text-stone-700 bg-stone-50 focus:outline-none focus:border-stone-400 focus:bg-white transition"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex justify-between items-center mt-4 pt-3 border-t border-stone-100">
-                          <button
-                            onClick={() => {
-                              setDraftStart("");
-                              setDraftEnd("");
-                              setSelectedRangeOption("");
-                            }}
-                            className="text-[12px] font-medium text-stone-400 hover:text-stone-600 transition"
-                          >
-                            Reset
-                          </button>
-                          <button
-                            onClick={() => {
-                              setAppliedStart(draftStart);
-                              setAppliedEnd(draftEnd);
-                              setShowPeriode(false);
-                            }}
-                            className="text-[12px] font-semibold text-white bg-stone-900 hover:bg-stone-700 transition px-4 py-1.5 rounded-lg"
-                          >
-                            Terapkan
-                          </button>
+                      {/* Pilihan Cepat */}
+                      <div className="mb-4">
+                        <p className="text-[11px] font-medium text-stone-400 mb-2">Pilihan Cepat</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {["1 Minggu", "1 Bulan", "3 Bulan", "6 Bulan", "1 Tahun"].map((opt) => (
+                            <button
+                              key={opt}
+                              onClick={() => handleQuickRange(opt)}
+                              className={`text-[11px] px-2.5 py-1 rounded-full font-medium transition-colors cursor-pointer ${
+                                selectedRangeOption === opt
+                                  ? "bg-stone-900 text-white"
+                                  : "border border-stone-200 text-stone-600 hover:bg-stone-50 bg-white"
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          ))}
                         </div>
                       </div>
-                    )}
-                  </div>
+
+                      <div className="h-px bg-stone-100 my-3" />
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[11px] font-medium text-stone-400 mb-1 block">Dari</label>
+                          <input
+                            type="date"
+                            value={draftStart}
+                            onChange={(e) => {
+                              setDraftStart(e.target.value);
+                              setSelectedRangeOption("");
+                            }}
+                            className="w-full border border-stone-200 rounded-lg px-3 py-2 text-[12px] text-stone-700 bg-stone-50 focus:outline-none focus:border-stone-400 focus:bg-white transition"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-medium text-stone-400 mb-1 block">Sampai</label>
+                          <input
+                            type="date"
+                            value={draftEnd}
+                            min={draftStart}
+                            onChange={(e) => {
+                              setDraftEnd(e.target.value);
+                              setSelectedRangeOption("");
+                            }}
+                            className="w-full border border-stone-200 rounded-lg px-3 py-2 text-[12px] text-stone-700 bg-stone-50 focus:outline-none focus:border-stone-400 focus:bg-white transition"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center mt-4 pt-3 border-t border-stone-100">
+                        <button
+                          onClick={() => {
+                            setDraftStart("");
+                            setDraftEnd("");
+                            setSelectedRangeOption("");
+                          }}
+                          className="text-[12px] font-medium text-stone-400 hover:text-stone-600 transition"
+                        >
+                          Reset
+                        </button>
+                        <button
+                          onClick={() => {
+                            setAppliedStart(draftStart);
+                            setAppliedEnd(draftEnd);
+                            setShowPeriode(false);
+                          }}
+                          className="text-[12px] font-semibold text-white bg-stone-900 hover:bg-stone-700 transition px-4 py-1.5 rounded-lg"
+                        >
+                          Terapkan
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                
-                <button 
-                  onClick={() => handleExport('csv')}
-                  className="flex items-center gap-1.5 text-[12px] font-medium text-stone-700 border border-stone-200 bg-white px-3 py-1.5 rounded-lg hover:bg-stone-50 transition shrink-0 cursor-pointer"
-                >
-                  <Download size={13} />
-                  <span>Export CSV</span>
-                </button>
               </div>
+              
+              <button 
+                onClick={() => handleExport('csv')}
+                className="flex items-center gap-1.5 text-[12px] font-medium text-stone-700 border border-stone-200 bg-white px-3 py-1.5 rounded-lg hover:bg-stone-50 transition shrink-0 cursor-pointer"
+              >
+                <Download size={13} />
+                <span>Export CSV</span>
+              </button>
             </div>
+          </div>
+
+          {/* Panel Tabel */}
+          <div className={activeTab === "Buku Besar" ? "" : "bg-white border border-stone-200/80 rounded-xl shadow-sm overflow-hidden"}>
 
             {/* Tabel Jurnal Umum */}
             {activeTab === "Jurnal Umum" && (
-              <div className="overflow-x-auto rounded-b-xl max-h-105">
+              <div className="overflow-x-auto">
                 <table className="w-full min-w-200">
                   <thead>
                     <tr className="border-b border-stone-200 bg-[#fafaf9]">
@@ -664,25 +668,41 @@ function JurnalAkuntansiContent() {
                       )
                     )}
                   </tbody>
+                  {!isLoading && journalEntries.length > 0 && (
+                    <tfoot>
+                      <tr className="border-t-2 border-stone-200 bg-[#fafaf9]">
+                        <td colSpan={4} className="px-6 py-3.5 text-right text-[11px] font-semibold text-stone-500 uppercase tracking-wider">
+                          Total
+                        </td>
+                        <td className="px-4 py-3.5 text-right text-[12px] font-mono font-bold text-stone-900 whitespace-nowrap">
+                          Rp {totalDebit.toLocaleString('id-ID')}
+                        </td>
+                        <td className="px-4 py-3.5 text-right text-[12px] font-mono font-bold text-stone-900 whitespace-nowrap">
+                          Rp {totalKredit.toLocaleString('id-ID')}
+                        </td>
+                        <td className="px-6 py-3.5"></td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
               </div>
             )}
 
             {/* Buku Besar */}
             {activeTab === "Buku Besar" && (
-              <div className="bg-[#f6f4f0] p-5 space-y-4 rounded-b-xl overflow-y-auto max-h-105">
+              <div className="space-y-4">
                 {isLoading ? (
-                  <div className="text-center py-12 text-stone-400 font-medium text-xs bg-white rounded-xl border border-stone-200">
+                  <div className="text-center py-12 text-stone-400 font-medium text-xs">
                     Memuat data Buku Besar...
                   </div>
                 ) : bukuBesarData.length === 0 ? (
-                  <div className="text-center py-12 text-stone-400 font-medium text-xs bg-white rounded-xl border border-stone-200">
+                  <div className="text-center py-12 text-stone-400 font-medium text-xs">
                     Tidak ada transaksi Buku Besar pada periode ini.
                   </div>
                 ) : (
                   bukuBesarData.map((account) => (
-                    <div key={account.kode} className="bg-white border border-stone-200/80 rounded-xl shadow-sm">
-                      <div className="flex justify-between items-center px-5 py-4 border-b border-stone-100 bg-[#fafaf9]">
+                    <div key={account.kode} className="border border-stone-200 rounded-xl overflow-hidden">
+                      <div className="flex justify-between items-center px-5 py-3.5 border-b border-stone-100 bg-white">
                         <div className="flex items-center gap-2.5">
                           <span className="text-[12px] font-mono text-stone-400">{account.kode}</span>
                           <span className="text-[13px] font-semibold text-stone-800">{account.nama}</span>
@@ -695,7 +715,7 @@ function JurnalAkuntansiContent() {
                       <div className="overflow-x-auto">
                         <table className="w-full text-left min-w-[600px]">
                           <thead>
-                            <tr className="bg-stone-50 border-b border-stone-200">
+                            <tr className="bg-[#fafaf9] border-b border-stone-200">
                               <th className="text-[11px] font-semibold text-stone-400 tracking-wider px-5 py-3 uppercase w-32">
                                 Tanggal
                               </th>
@@ -714,7 +734,7 @@ function JurnalAkuntansiContent() {
                             {account.transaksi.map((tx, i) => (
                               <tr
                                 key={i}
-                                className={`hover:bg-stone-50/20 transition-colors ${
+                                className={`bg-white hover:bg-stone-50/20 transition-colors ${
                                   i < account.transaksi.length - 1 ? "border-b border-stone-100" : ""
                                 }`}
                               >
@@ -733,6 +753,19 @@ function JurnalAkuntansiContent() {
                               </tr>
                             ))}
                           </tbody>
+                          <tfoot>
+                            <tr className="border-t-2 border-stone-200 bg-stone-50">
+                              <td colSpan={2} className="px-5 py-3 text-right text-[11px] font-semibold text-stone-500 uppercase tracking-wider">
+                                Total
+                              </td>
+                              <td className="px-4 py-3 text-right text-[12px] font-mono font-bold text-stone-900 whitespace-nowrap">
+                                Rp {account.totalDebit.toLocaleString('id-ID')}
+                              </td>
+                              <td className="px-5 py-3 text-right text-[12px] font-mono font-bold text-stone-900 whitespace-nowrap">
+                                Rp {account.totalKredit.toLocaleString('id-ID')}
+                              </td>
+                            </tr>
+                          </tfoot>
                         </table>
                       </div>
                     </div>
@@ -743,7 +776,7 @@ function JurnalAkuntansiContent() {
 
             {/* Neraca */}
             {activeTab === "Neraca" && (
-              <div className="overflow-x-auto rounded-b-xl">
+              <div className="overflow-x-auto">
                 <table className="w-full text-left min-w-[800px]">
                   <thead>
                     <tr className="border-b border-stone-200 bg-[#fafaf9] text-[11px] font-semibold text-stone-400 uppercase tracking-wider">
@@ -783,7 +816,7 @@ function JurnalAkuntansiContent() {
 
             {/* Laba Rugi */}
             {activeTab === "Laba Rugi" && (
-              <div className="overflow-x-auto rounded-b-xl">
+              <div className="overflow-x-auto">
                 <table className="w-full text-left min-w-[600px]">
                   <thead>
                     <tr className="border-b border-stone-200 bg-[#fafaf9] text-[11px] font-semibold text-stone-400 uppercase tracking-wider">
