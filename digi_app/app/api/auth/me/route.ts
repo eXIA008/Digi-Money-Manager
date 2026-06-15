@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       return response;
     }
 
-    const assignments = user.proyek.map((up) => ({
+    const assignments = user.proyek.map((up: any) => ({
       proyekId: up.proyekId,
       nama: up.proyek.nama,
       status: up.proyek.status,
@@ -43,14 +43,14 @@ export async function GET(req: NextRequest) {
     if (user.role === 'Direktur / Manajemen' || user.role === 'Tim Keuangan') {
       rolesSet.add(user.role);
     } else {
-      const hasPM = user.proyek.some(up => up.role === 'Project Manager');
-      const hasKaryawan = user.proyek.some(up => up.role === 'Anggota Lapangan') || !hasPM;
+      const hasPM = user.proyek.some((up: any) => up.role === 'Project Manager');
+      const hasKaryawan = user.proyek.some((up: any) => up.role === 'Anggota Lapangan') || !hasPM;
 
       if (hasPM) rolesSet.add('Project Manager');
       if (hasKaryawan) rolesSet.add('Karyawan');
 
       if (activeProyekId !== null) {
-        const activeAssignment = user.proyek.find(up => up.proyekId === activeProyekId);
+        const activeAssignment = user.proyek.find((up: any) => up.proyekId === activeProyekId);
         if (activeAssignment) {
           primaryRole = activeAssignment.role === 'Anggota Lapangan' ? 'Karyawan' : 'Project Manager';
         } else {
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     const allowedRoles = Array.from(rolesSet);
 
     const activeProjectAssignment = activeProyekId !== null 
-      ? user.proyek.find(up => up.proyekId === activeProyekId) 
+      ? user.proyek.find((up: any) => up.proyekId === activeProyekId) 
       : null;
     const userProyekDetails = activeProjectAssignment ? activeProjectAssignment.proyek : null;
 
