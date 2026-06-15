@@ -1,3 +1,11 @@
+// Polyfill for Edge Runtime compatibility with some dependencies
+if (typeof (globalThis as any).__dirname === 'undefined') {
+  (globalThis as any).__dirname = '';
+}
+if (typeof (globalThis as any).__filename === 'undefined') {
+  (globalThis as any).__filename = '';
+}
+
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
@@ -220,6 +228,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  runtime: 'nodejs',
   matcher: ['/', '/select-project/:path*', '/karyawan/:path*', '/pm/:path*', '/keuangan/:path*', '/manager/:path*', '/api/:path*'],
 };
