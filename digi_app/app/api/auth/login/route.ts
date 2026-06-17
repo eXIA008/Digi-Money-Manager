@@ -39,8 +39,8 @@ export async function POST(req: Request) {
     if (user.role === 'Direktur / Manajemen' || user.role === 'Tim Keuangan') {
       rolesSet.add(user.role);
     } else {
-      const hasPM = userProyeks.some(up => up.role === 'Project Manager');
-      const hasKaryawan = userProyeks.some(up => up.role === 'Anggota Lapangan') || !hasPM;
+      const hasPM = userProyeks.some((up: any) => up.role === 'Project Manager');
+      const hasKaryawan = userProyeks.some((up: any) => up.role === 'Anggota Lapangan') || !hasPM;
 
       if (hasPM) rolesSet.add('Project Manager');
       if (hasKaryawan) rolesSet.add('Karyawan');
